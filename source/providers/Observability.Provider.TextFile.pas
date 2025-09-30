@@ -46,6 +46,7 @@ type
     procedure RotateFileIfNeeded(const FileName: string);
     function GetFileSize(const FileName: string): Int64;
     procedure EnsureDirectoryExists(const Directory: string);
+    function GetDefaultLogDirectory: string;
   protected
     function GetProviderType: TObservabilityProvider; override;
     function GetSupportedTypes: TObservabilityTypeSet; override;
@@ -136,8 +137,8 @@ begin
   inherited Create;
   FLock := TCriticalSection.Create;
   
-  // Valores padrão
-  FBaseDirectory := TPath.Combine(TPath.GetDocumentsPath, 'ObservabilityLogs');
+  // Valores padrão - será definido em ValidateConfiguration se não for especificado
+  FBaseDirectory := ''; // Empty, will be set to default in ValidateConfiguration
   FTraceFileName := 'traces';
   FLogFileName := 'logs';
   FMetricsFileName := 'metrics';
@@ -168,7 +169,7 @@ begin
   inherited ValidateConfiguration;
   
   if FBaseDirectory.IsEmpty then
-    FBaseDirectory := TPath.Combine(TPath.GetDocumentsPath, 'ObservabilityLogs');
+    FBaseDirectory := GetDefaultLogDirectory;
     
   EnsureDirectoryExists(FBaseDirectory);
 end;
@@ -837,5 +838,36 @@ procedure TTextFileMetrics.DoSummary(const Name: string; const Value: Double; co
 begin
   WriteMetric('summary', Name, Value, Tags, Now);
 end;
+
+function TTextFileProvider.GetDefaultLogDirectory: string;
+{$IFDEF MSWINDOWS}
+begin
+  // Windows: Use Documents folder
+  Result := TPath.Combine(TPath.GetDocumentsPath, 'ObservabilityLogs');
+end;
+{$ELSE}
+var
+  HomeDir: string;
+begin
+  // Linux/Unix: Try standard locations
+  try
+    // First try XDG_DATA_HOME or ~/.local/share
+    HomeDir := GetEnvironmentVariable('XDG_DATA_HOME');
+    if HomeDir.IsEmpty then
+    begin
+      HomeDir := GetEnvironmentVariable('HOME');
+      if not HomeDir.IsEmpty then
+        HomeDir := TPath.Combine(HomeDir, '.local/share')
+      else
+        HomeDir := '/tmp'; // Last resort
+    end;
+    
+    Result := TPath.Combine(HomeDir, 'observability-logs');
+  except
+    // Fallback to temp directory
+    Result := TPath.Combine(TPath.GetTempPath, 'observability-logs');
+  end;
+end;
+{$ENDIF}
 
 end.

@@ -265,14 +265,14 @@ begin
     begin
       // Log error but don't throw exception to avoid breaking application
       if True then // Debug mode - could be made configurable
-        WriteLn(Format('Sentry error: HTTP %d - %s', [Response.StatusCode, Response.StatusText]));
+        System.Writeln(Format('Sentry error: HTTP %d - %s', [Response.StatusCode, Response.StatusText]));
     end;
     
   except
     on E: Exception do
     begin
       if True then // Debug mode - could be made configurable
-        WriteLn(Format('Failed to send to Sentry: %s', [E.Message]));
+        System.Writeln(Format('Failed to send to Sentry: %s', [E.Message]));
     end;
   end;
   

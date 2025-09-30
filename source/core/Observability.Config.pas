@@ -24,6 +24,10 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Generics.Collections, System.SyncObjs,
+  System.IOUtils,
+  {$IFDEF MSWINDOWS}
+  Winapi.Windows,
+  {$ENDIF}
   Observability.Interfaces;
 
 type
@@ -42,6 +46,9 @@ type
     FSupportedTypes: TObservabilityTypeSet;
     FCustomProperties: TDictionary<string, string>;
     FLock: TCriticalSection;
+    
+    function GetDefaultServiceName: string;
+    function GetDefaultServiceVersion: string;
   protected
     function GetServiceName: string;
     function GetServiceVersion: string;
@@ -92,6 +99,8 @@ begin
   FLock := TCriticalSection.Create;
   
   // Default values
+  FServiceName := GetDefaultServiceName; // Auto-detect from executable name
+  FServiceVersion := GetDefaultServiceVersion; // Auto-detect from executable version
   FSampleRate := 1.0;
   FBatchSize := 50;
   FFlushInterval := 30000; // 30 seconds
@@ -186,6 +195,10 @@ function TObservabilityConfig.GetServiceName: string;
 begin
   FLock.Enter;
   try
+    // If ServiceName is empty, return the default
+    if FServiceName.Trim.IsEmpty then
+      FServiceName := GetDefaultServiceName;
+
     Result := FServiceName;
   finally
     FLock.Leave;
@@ -196,6 +209,10 @@ function TObservabilityConfig.GetServiceVersion: string;
 begin
   FLock.Enter;
   try
+    // If ServiceVersion is empty, return the default from executable
+    if FServiceVersion.Trim.IsEmpty then
+      FServiceVersion := GetDefaultServiceVersion;
+     
     Result := FServiceVersion;
   finally
     FLock.Leave;
@@ -424,5 +441,95 @@ begin
     FLock.Leave;
   end;
 end;
+
+function TObservabilityConfig.GetDefaultServiceName: string;
+var
+  ExeName: string;
+begin
+  try
+    // Get the executable name without path and extension
+    ExeName := TPath.GetFileNameWithoutExtension(ParamStr(0));
+    
+    // If empty or just whitespace, use a default name
+    if ExeName.Trim.IsEmpty then
+      Result := 'delphi-application'
+    else
+      Result := ExeName.ToLower; // Convert to lowercase for consistency
+  except
+    // Fallback in case of any error
+    Result := 'delphi-application';
+  end;
+end;
+
+function TObservabilityConfig.GetDefaultServiceVersion: string;
+{$IFDEF MSWINDOWS}
+var
+  FileName: string;
+  InfoSize, VerInfoSize: DWORD;
+  VerInfo: Pointer;
+  VerValueSize: DWORD;
+  VerValue: PVSFixedFileInfo;
+  Dummy: DWORD;
+begin
+  try
+    FileName := ParamStr(0);
+    InfoSize := GetFileVersionInfoSize(PChar(FileName), Dummy);
+    
+    if InfoSize <> 0 then
+    begin
+      GetMem(VerInfo, InfoSize);
+      try
+        if GetFileVersionInfo(PChar(FileName), 0, InfoSize, VerInfo) then
+        begin
+          if VerQueryValue(VerInfo, '\', Pointer(VerValue), VerValueSize) then
+          begin
+            Result := Format('%d.%d.%d.%d', [
+              HiWord(VerValue^.dwFileVersionMS),
+              LoWord(VerValue^.dwFileVersionMS),
+              HiWord(VerValue^.dwFileVersionLS),
+              LoWord(VerValue^.dwFileVersionLS)
+            ]);
+            Exit;
+          end;
+        end;
+      finally
+        FreeMem(VerInfo);
+      end;
+    end;
+  except
+    // Ignore exceptions and fall through to default
+  end;
+  
+  // Fallback version
+  Result := '1.0.0.0';
+end;
+{$ELSE}
+// Linux/Unix version detection
+var
+  ExePath: string;
+  ModTime: TDateTime;
+  Year, Month, Day: Word;
+begin
+  try
+    ExePath := ParamStr(0);
+    
+    // Try to get modification time as a version indicator
+    if TFile.Exists(ExePath) then
+    begin
+      ModTime := TFile.GetLastWriteTime(ExePath);
+      DecodeDate(ModTime, Year, Month, Day);
+      
+      // Create a version based on build date: YYYY.MM.DD.0
+      Result := Format('%d.%d.%d.0', [Year, Month, Day]);
+      Exit;
+    end;
+  except
+    // Ignore exceptions and fall through to default
+  end;
+  
+  // Fallback version for Linux
+  Result := '1.0.0.0';
+end;
+{$ENDIF}
 
 end.

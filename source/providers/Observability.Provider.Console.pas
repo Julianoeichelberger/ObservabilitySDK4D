@@ -83,12 +83,12 @@ end;
 
 procedure TConsoleProvider.DoInitialize;
 begin
-  Writeln('[CONSOLE PROVIDER] Initialized');
+  System.Writeln('[CONSOLE PROVIDER] Initialized');
 end;
 
 procedure TConsoleProvider.DoShutdown;
 begin
-  Writeln('[CONSOLE PROVIDER] Shutdown');
+  System.Writeln('[CONSOLE PROVIDER] Shutdown');
 end;
 
 function TConsoleProvider.CreateTracer: IObservabilityTracer;
@@ -152,7 +152,7 @@ begin
   if not AttributesStr.IsEmpty then
     AttributesStr := ' [' + AttributesStr + ']';
   
-  Writeln(Format('[SPAN] %s | %s | %s->%s | %.2fms | %s%s', [
+  System.Writeln(Format('[SPAN] %s | %s | %s->%s | %.2fms | %s%s', [
     FName,
     OutcomeStr,
     FormatDateTime('hh:nn:ss.zzz', FStartTime),
@@ -165,12 +165,12 @@ end;
 
 procedure TConsoleSpan.DoRecordException(const Exception: Exception);
 begin
-  Writeln(Format('[SPAN EXCEPTION] %s | %s: %s', [FName, Exception.ClassName, Exception.Message]));
+  System.Writeln(Format('[SPAN EXCEPTION] %s | %s: %s', [FName, Exception.ClassName, Exception.Message]));
 end;
 
 procedure TConsoleSpan.DoAddEvent(const Name, Description: string);
 begin
-  Writeln(Format('[SPAN EVENT] %s | %s: %s', [FName, Name, Description]));
+  System.Writeln(Format('[SPAN EVENT] %s | %s: %s', [FName, Name, Description]));
 end;
 
 { TConsoleTracer }
@@ -178,7 +178,7 @@ end;
 function TConsoleTracer.DoCreateSpan(const Name: string; const Context: IObservabilityContext): IObservabilitySpan;
 begin
   Result := TConsoleSpan.Create(Name, Context);
-  Writeln(Format('[TRACE] Started span: %s | TraceId: %s | SpanId: %s | ParentSpanId: %s', [
+  System.Writeln(Format('[TRACE] Started span: %s | TraceId: %s | SpanId: %s | ParentSpanId: %s', [
     Name, 
     Context.TraceId, 
     Result.SpanId, 
@@ -235,7 +235,7 @@ begin
   if Assigned(Exception) then
     LogLine := LogLine + Format(' | Exception: %s - %s', [Exception.ClassName, Exception.Message]);
   
-  Writeln(LogLine);
+  System.Writeln(LogLine);
 end;
 
 function TConsoleLogger.LogLevelToString(const Level: TLogLevel): string;
@@ -283,7 +283,7 @@ begin
   if not TagsStr.IsEmpty then
     TagsStr := ' [' + TagsStr + ']';
   
-  Writeln(Format('[COUNTER] %s | %.2f%s | %s', [
+  System.Writeln(Format('[COUNTER] %s | %.2f%s | %s', [
     Name, 
     Value, 
     TagsStr,
@@ -320,7 +320,7 @@ begin
   if not TagsStr.IsEmpty then
     TagsStr := ' [' + TagsStr + ']';
   
-  Writeln(Format('[GAUGE] %s | %.2f%s | %s', [
+  System.Writeln(Format('[GAUGE] %s | %.2f%s | %s', [
     Name, 
     Value, 
     TagsStr,
@@ -357,7 +357,7 @@ begin
   if not TagsStr.IsEmpty then
     TagsStr := ' [' + TagsStr + ']';
   
-  Writeln(Format('[HISTOGRAM] %s | %.2f%s | %s', [
+  System.Writeln(Format('[HISTOGRAM] %s | %.2f%s | %s', [
     Name, 
     Value, 
     TagsStr,
@@ -394,7 +394,7 @@ begin
   if not TagsStr.IsEmpty then
     TagsStr := ' [' + TagsStr + ']';
   
-  Writeln(Format('[SUMMARY] %s | %.2f%s | %s', [
+  System.Writeln(Format('[SUMMARY] %s | %.2f%s | %s', [
     Name, 
     Value, 
     TagsStr,
