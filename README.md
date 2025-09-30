@@ -2,57 +2,57 @@
 
 A modern, comprehensive Observability SDK for Delphi applications that provides Application Performance Monitoring (APM), Distributed Tracing, Structured Logging, and Metrics collection capabilities.
 
-## ?? Overview
+## 🚀 Overview
 
 ObservabilitySDK4D is a unified observability solution designed specifically for Delphi applications. It implements industry-standard observability patterns including OpenTelemetry-compatible APIs, providing developers with powerful tools to monitor, debug, and optimize their applications in production environments.
 
 ### Key Features
 
-- **?? Distributed Tracing**: Track requests across services with automatic span generation and context propagation
-- **?? Structured Logging**: Advanced logging with multiple levels, attributes, and exception tracking
-- **?? Metrics Collection**: Counter, Gauge, Histogram, and Summary metrics with custom tags
-- **?? Multiple Providers**: Support for popular observability platforms
-- **?? Thread-Safe**: Built with concurrent applications in mind
-- **? High Performance**: Minimal overhead with asynchronous operations
-- **??? Easy Integration**: Simple API with helper classes for quick adoption
+- **🔍 Distributed Tracing**: Track requests across services with automatic span generation and context propagation
+- **📝 Structured Logging**: Advanced logging with multiple levels, attributes, and exception tracking
+- **📊 Metrics Collection**: Counter, Gauge, Histogram, and Summary metrics with custom tags
+- **🔌 Multiple Providers**: Support for popular observability platforms
+- **🎯 Thread-Safe**: Built with concurrent applications in mind
+- **⚡ High Performance**: Minimal overhead with asynchronous operations
+- **🛠️ Easy Integration**: Simple API with helper classes for quick adoption
 
-## ?? Supported Providers
+## 📋 Supported Providers
 
 The SDK supports multiple observability platforms out of the box:
 
 | Provider | Tracing | Logging | Metrics | Description |
 |----------|---------|---------|---------|-------------|
-| **Elastic APM** | ? | ? | ? | Full Elastic Stack integration |
-| **Jaeger** | ? | ? | ? | Distributed tracing focused |
-| **Sentry** | ? | ? | ? | Error tracking and performance monitoring |
-| **Datadog** | ? | ? | ? | Complete APM solution |
-| **Console** | ? | ? | ? | Debug output for development |
-| **Text File** | ? | ? | ? | File-based logging and metrics |
+| **Elastic APM** | ✅ | ✅ | ✅ | Full Elastic Stack integration |
+| **Jaeger** | ✅ | ❌ | ❌ | Distributed tracing focused |
+| **Sentry** | ✅ | ✅ | ❌ | Error tracking and performance monitoring |
+| **Datadog** | ✅ | ✅ | ✅ | Complete APM solution |
+| **Console** | ✅ | ✅ | ✅ | Debug output for development |
+| **Text File** | ✅ | ✅ | ✅ | File-based logging and metrics |
 
-## ??? Architecture
+## 🏗️ Architecture
 
 The SDK follows a provider-based architecture with three main observability pillars:
 
 ```
 ObservabilitySDK4D
-??? Core Components
-?   ??? SDK Manager (Singleton)
-?   ??? Context Management
-?   ??? Configuration
-??? Observability Types
-?   ??? Tracing (Spans, Traces)
-?   ??? Logging (Structured Logs)
-?   ??? Metrics (Counters, Gauges, Histograms)
-??? Providers
-    ??? Elastic APM
-    ??? Jaeger
-    ??? Sentry
-    ??? Datadog
-    ??? Console
-    ??? Text File
+├── Core Components
+│   ├── SDK Manager (Singleton)
+│   ├── Context Management
+│   └── Configuration
+├── Observability Types
+│   ├── Tracing (Spans, Traces)
+│   ├── Logging (Structured Logs)
+│   └── Metrics (Counters, Gauges, Histograms)
+└── Providers
+    ├── Elastic APM
+    ├── Jaeger
+    ├── Sentry
+    ├── Datadog
+    ├── Console
+    └── Text File
 ```
 
-## ?? Quick Start
+## 🚀 Quick Start
 
 ### 1. Basic Setup
 
@@ -117,7 +117,7 @@ TObservability.Gauge('active.users', 42.0);
 TObservability.Histogram('request.duration', ResponseTimeMs);
 ```
 
-## ?? Advanced Configuration
+## 🔧 Advanced Configuration
 
 ### Provider-Specific Configuration
 
@@ -183,7 +183,7 @@ var ChildContext := TObservability.CreateChildContext(Context);
 ChildContext.AddAttribute('request.id', 'req-12345');
 ```
 
-## ?? Common Use Cases
+## 🎯 Common Use Cases
 
 ### Web API Monitoring
 
@@ -279,7 +279,7 @@ begin
 end;
 ```
 
-## ?? Metrics Types
+## 📊 Metrics Types
 
 ### Counters
 Track cumulative values that only increase:
@@ -305,7 +305,7 @@ TObservability.Histogram('payload.size.bytes', PayloadSize);
 TObservability.Histogram('db.query.time', QueryDuration);
 ```
 
-## ?? Span Types and Context
+## 🔍 Span Types and Context
 
 ### Span Kinds
 - **Client**: Outgoing requests (HTTP calls, database queries)
@@ -326,7 +326,7 @@ var Span := TObservability.StartSpan('handle-request', Context);
 TObservability.Tracer.InjectHeaders(OutgoingHeaders);
 ```
 
-## ??? Installation
+## 🛠️ Installation
 
 1. Add the source path to your project
 2. Include the required units in your uses clause
@@ -342,7 +342,7 @@ uses
   // Add other providers as needed
 ```
 
-## ?? Best Practices
+## 📝 Best Practices
 
 ### 1. Naming Conventions
 - Use descriptive span names: `'user.authenticate'`, `'db.query.users'`
@@ -376,22 +376,22 @@ end;
 - Use the SDK's helper methods for common patterns
 - Properly shutdown the SDK on application exit
 
-## ?? Performance Considerations
+## 🚦 Performance Considerations
 
 - The SDK is designed for minimal overhead
 - Spans and metrics are processed asynchronously where possible
 - Use sampling rates in high-throughput scenarios
 - Consider batch sizes for high-volume logging
 
-## ?? License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## ?? Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## ?? Support
+## 📞 Support
 
 For support and questions, please open an issue in the GitHub repository.
 
