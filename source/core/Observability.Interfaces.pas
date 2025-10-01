@@ -95,14 +95,16 @@ type
     function GetKind: TSpanKind;
     function GetStartTime: TDateTime;
     function GetEndTime: TDateTime;
-    function GetDuration: Double;
     function GetOutcome: TOutcome;
     function GetAttributes: TDictionary<string, string>;
     function GetContext: IObservabilityContext;
+    function GetChildSpanCount: Integer;
+    function GetDuration: Double; // Duration in milliseconds
     
     procedure SetName(const Value: string);
     procedure SetKind(const Value: TSpanKind);
     procedure SetOutcome(const Value: TOutcome);
+    procedure IncrementChildSpanCount;
     procedure AddAttribute(const Key, Value: string); overload;
     procedure AddAttribute(const Key: string; const Value: Integer); overload;
     procedure AddAttribute(const Key: string; const Value: Double); overload;
@@ -119,10 +121,11 @@ type
     property Kind: TSpanKind read GetKind write SetKind;
     property StartTime: TDateTime read GetStartTime;
     property EndTime: TDateTime read GetEndTime;
-    property Duration: Double read GetDuration;
     property Outcome: TOutcome read GetOutcome write SetOutcome;
     property Attributes: TDictionary<string, string> read GetAttributes;
     property Context: IObservabilityContext read GetContext;
+    property ChildSpanCount: Integer read GetChildSpanCount;
+    property Duration: Double read GetDuration; // Duration in milliseconds
   end;
 
   // Interface para Tracer

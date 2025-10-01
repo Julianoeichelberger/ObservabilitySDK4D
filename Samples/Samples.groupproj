@@ -1,0 +1,36 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{F3F404DD-8518-42BB-8A0B-68ED636BE329}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Elastic\Elastic.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Elastic">
+        <MSBuild Projects="Elastic\Elastic.dproj"/>
+    </Target>
+    <Target Name="Elastic:Clean">
+        <MSBuild Projects="Elastic\Elastic.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Elastic:Make">
+        <MSBuild Projects="Elastic\Elastic.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Elastic"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Elastic:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Elastic:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

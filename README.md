@@ -11,7 +11,8 @@ ObservabilitySDK4D is a unified observability solution designed specifically for
 - **🔍 Distributed Tracing**: Track requests across services with automatic span generation and context propagation
 - **📝 Structured Logging**: Advanced logging with multiple levels, attributes, and exception tracking
 - **📊 Metrics Collection**: Counter, Gauge, Histogram, and Summary metrics with custom tags
-- **🔌 Multiple Providers**: Support for popular observability platforms
+- **� System Metrics**: Automatic collection of memory, CPU, threads, and I/O metrics
+- **�🔌 Multiple Providers**: Support for popular observability platforms
 - **🎯 Thread-Safe**: Built with concurrent applications in mind
 - **⚡ High Performance**: Minimal overhead with asynchronous operations
 - **🛠️ Easy Integration**: Simple API with helper classes for quick adoption
@@ -117,6 +118,34 @@ TObservability.Gauge('active.users', 42.0);
 TObservability.Histogram('request.duration', ResponseTimeMs);
 ```
 
+### 5. System Metrics (Auto-Collection)
+
+```pascal
+// Enable automatic system metrics collection
+TObservability.EnableSystemMetrics;
+
+// Custom system metrics with specific options
+TObservability.EnableSystemMetrics(
+  [smoMemoryUsage, smoCPUUsage, smoThreadCount], // Metrics to collect
+  si30Seconds  // Collection interval
+);
+
+// Manual collection
+TObservability.CollectSystemMetricsOnce;
+
+// Disable when done
+TObservability.DisableSystemMetrics;
+```
+
+**Available System Metrics:**
+- 📊 **Memory Usage**: Application and system memory consumption
+- ⚡ **CPU Usage**: Application and system CPU utilization  
+- 🧵 **Thread Count**: Number of active threads
+- 📁 **Handle Count**: File handles/descriptors (Windows/Linux)
+- 🗑️ **GC Metrics**: Garbage collection statistics
+- 💾 **Disk I/O**: Read/write operations (optional)
+- 🌐 **Network I/O**: Network traffic statistics (optional)
+
 ## 🔧 Advanced Configuration
 
 ### Provider-Specific Configuration
@@ -134,7 +163,7 @@ begin
   Config.ServerUrl := 'http://localhost:8200';
   Config.ApiKey := 'your-api-key';
   
-  Provider := TElasticProvider.Create;
+  Provider := TElasticAPMProvider.Create;
   Provider.Configure(Config);
   TObservability.RegisterProvider(Provider);
 end;

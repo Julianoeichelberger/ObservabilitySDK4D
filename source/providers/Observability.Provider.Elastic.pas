@@ -3,7 +3,7 @@
 
   Observability SDK for Delphi.
 
-  Copyright (C) 2025 Juliano Eichelberger 
+  Copyright (C) 2025 Juliano Eichelberger
 
   License Notice:
   This software is licensed under the terms of the MIT License.
@@ -24,32 +24,34 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Generics.Collections, System.JSON,
-  System.Net.HTTPClient, System.Net.URLClient, System.DateUtils,
-  Observability.Interfaces, Observability.Provider.Base, Observability.Context; 
+  System.Net.URLClient, System.DateUtils, REST.Types,
+{$IFDEF MSWINDOWS}
+  Winapi.Windows,
+{$ENDIF}
+{$IFDEF LINUX}
+  Posix.Unistd,
+{$ENDIF}
+  Observability.Interfaces, Observability.Provider.Base, Observability.Context,
+  Observability.HttpClient;
 
 type
   TElasticAPMProvider = class(TBaseObservabilityProvider)
   private
-    FHttpClient: THttpClient;
-    FApiKey: string;
     FServerUrl: string;
-    
-    procedure SendToElastic(const JsonData: TJSONObject; const Endpoint: string);
-    function CreateElasticHeaders: TArray<TNameValuePair>;
+    FApiKey: string;
+    procedure SendBatchToElastic(const BatchData: string);
+    function CreateMetadataObject: TJSONObject;
   protected
     function GetProviderType: TObservabilityProvider; override;
     function GetSupportedTypes: TObservabilityTypeSet; override;
-    
-    procedure DoInitialize; override;
-    procedure DoShutdown; override;
+
     function CreateTracer: IObservabilityTracer; override;
     function CreateLogger: IObservabilityLogger; override;
     function CreateMetrics: IObservabilityMetrics; override;
-    
+
     procedure ValidateConfiguration; override;
   public
     constructor Create; override;
-    destructor Destroy; override;
   end;
 
   TElasticSpan = class(TBaseObservabilitySpan)
@@ -60,10 +62,10 @@ type
     procedure DoRecordException(const Exception: Exception); override;
     procedure DoAddEvent(const Name, Description: string); override;
   public
-    constructor Create(const Name: string; const Context: IObservabilityContext; 
+    constructor Create(const Name: string; const Context: IObservabilityContext;
       const ElasticProvider: TElasticAPMProvider); reintroduce;
-    
-    function ToElasticJSON: TJSONObject;
+
+    function ToElasticJSON(const IsTransaction: Boolean = True): TJSONObject;
   end;
 
   TElasticTracer = class(TBaseObservabilityTracer)
@@ -73,7 +75,7 @@ type
     function DoCreateSpan(const Name: string; const Context: IObservabilityContext): IObservabilitySpan; override;
   public
     constructor Create(const Context: IObservabilityContext; const ElasticProvider: TElasticAPMProvider); reintroduce;
-    
+
     procedure InjectHeaders(const Headers: TStrings); override;
     function ExtractContext(const Headers: TStrings): IObservabilityContext; override;
   end;
@@ -81,10 +83,10 @@ type
   TElasticLogger = class(TBaseObservabilityLogger)
   private
     FElasticProvider: TElasticAPMProvider;
-    
+
     function LogLevelToElastic(const Level: TLogLevel): string;
   protected
-    procedure DoLog(const Level: TLogLevel; const Message: string; 
+    procedure DoLog(const Level: TLogLevel; const Message: string;
       const Attributes: TDictionary<string, string>; const Exception: Exception); override;
   public
     constructor Create(const Context: IObservabilityContext; const ElasticProvider: TElasticAPMProvider); reintroduce;
@@ -93,7 +95,7 @@ type
   TElasticMetrics = class(TBaseObservabilityMetrics)
   private
     FElasticProvider: TElasticAPMProvider;
-    
+
     procedure SendMetricSet(const Metrics: TJSONObject);
   protected
     procedure DoCounter(const Name: string; const Value: Double; const Tags: TDictionary<string, string>); override;
@@ -114,12 +116,6 @@ begin
   FServerUrl := 'http://localhost:8200';
 end;
 
-destructor TElasticAPMProvider.Destroy;
-begin
-  FHttpClient.Free;
-  inherited Destroy;
-end;
-
 function TElasticAPMProvider.GetProviderType: TObservabilityProvider;
 begin
   Result := opElastic;
@@ -133,63 +129,110 @@ end;
 procedure TElasticAPMProvider.ValidateConfiguration;
 begin
   inherited ValidateConfiguration;
-  
+
   if FConfig.ServerUrl.IsEmpty then
     raise EConfigurationError.Create('Elastic APM server URL is required');
 end;
 
-function TElasticAPMProvider.CreateElasticHeaders: TArray<TNameValuePair>;
+function TElasticAPMProvider.CreateMetadataObject: TJSONObject;
+var
+  ServiceObj, AgentObj, SystemObj, ProcessObj: TJSONObject;
+  HostName: string;
 begin
-  SetLength(Result, 1);
-  Result[0] := TNameValuePair.Create('Content-Type', 'application/x-ndjson');
-  
-  if not FApiKey.IsEmpty then
-  begin
-    SetLength(Result, 2);
-    Result[1] := TNameValuePair.Create('Authorization', 'Bearer ' + FApiKey);
-  end;
+  Result := TJSONObject.Create;
+
+  // Service metadata with embedded agent
+  ServiceObj := TJSONObject.Create;
+  ServiceObj.AddPair('name', FConfig.ServiceName);
+  if not FConfig.ServiceVersion.IsEmpty then
+    ServiceObj.AddPair('version', FConfig.ServiceVersion);
+  if not FConfig.Environment.IsEmpty then
+    ServiceObj.AddPair('environment', FConfig.Environment);
+
+  // Agent metadata - INSIDE service object
+  AgentObj := TJSONObject.Create;
+  AgentObj.AddPair('name', 'apm-agent-delphi');
+  AgentObj.AddPair('version', '1.0.0');
+  ServiceObj.AddPair('agent', AgentObj);
+
+  // Process metadata is optional
+  ProcessObj := TJSONObject.Create;
+  ProcessObj.AddPair('pid', TJSONNumber.Create(
+{$IFDEF MSWINDOWS} GetCurrentProcessId {$ELSE} getpid {$ENDIF} )
+    );
+
+  // Get hostname
+  HostName := GetEnvironmentVariable({$IFDEF MSWINDOWS} 'COMPUTERNAME' {$ELSE} 'HOSTNAME' {$ENDIF});
+  if HostName.IsEmpty then
+    HostName := 'localhost';
+
+  // System metadata is optional
+  SystemObj := TJSONObject.Create;
+  SystemObj.AddPair('platform', {$IFDEF MSWINDOWS} 'windows' {$ELSE} 'linux' {$ENDIF});
+  SystemObj.AddPair('architecture', {$IFDEF CPUX64} 'x86_64' {$ELSE} 'x86' {$ENDIF});
+  SystemObj.AddPair('hostname', HostName);
+
+  // Add service (with agent inside) and optional fields
+  Result.AddPair('service', ServiceObj);
+  Result.AddPair('process', ProcessObj);
+  Result.AddPair('system', SystemObj);
 end;
 
-procedure TElasticAPMProvider.SendToElastic(const JsonData: TJSONObject; const Endpoint: string);
+procedure TElasticAPMProvider.SendBatchToElastic(const BatchData: string);
 var
-  Url: string;
-  Response: IHTTPResponse;
-  Stream: TStringStream;
+  Response: IResponse;
+  Request: IRequest;
 begin
-  Url := FServerUrl;
-  if not Url.EndsWith('/') then
-    Url := Url + '/';
-  Url := Url + Endpoint;
-  
-  Stream := TStringStream.Create(JsonData.ToString, TEncoding.UTF8);
+  // Try to recreate the client if it was somehow lost
   try
-    Response := FHttpClient.Post(Url, Stream, nil, CreateElasticHeaders);
-    
-    if Response.StatusCode <> 202 then
+    Request := TRestClient.New
+      .BaseURL(FServerUrl)
+      .UserAgent('ObservabilitySDK4D-Elastic/1.0')
+      .Accept('application/json')
+      .Timeout(30000);
+
+    if not FApiKey.IsEmpty then
+      Request := Request.AddHeader('Authorization', 'Bearer ' + FApiKey);
+  except
+    on E: Exception do
     begin
-      System.Writeln(Format('[ELASTIC] Failed to send to %s: %d - %s', 
-        [Endpoint, Response.StatusCode, Response.StatusText]));
+      System.Writeln('[ELASTIC] ? Failed to recreate HttpClient: ' + E.Message);
+      Exit;
+    end;
+  end;
+
+  if BatchData.Trim.IsEmpty then
+  begin
+    System.Writeln('[ELASTIC] ? BatchData is empty');
+    Exit;
+  end;
+
+  try
+    System.Writeln('[ELASTIC-DEBUG] Sending to intake/v2/events endpoint');
+    System.Writeln('[ELASTIC-DEBUG] Data: ' + BatchData);
+
+    Response := Request
+      .Resource('intake/v2/events')
+      .AddHeader('Content-Type', 'application/x-ndjson', [poDoNotEncode])
+      .AddBody(BatchData)
+      .Post;
+
+    if Response.StatusCode = 202 then
+    begin
+      System.Writeln('[ELASTIC] ? Batch sent successfully')
+    end
+    else
+    begin
+      System.Writeln(Format('[ELASTIC] ? Failed to send batch: %d', [Response.StatusCode]));
+      System.Writeln('[ELASTIC] Response: ' + Response.AsString);
     end;
   except
     on E: Exception do
-      System.Writeln(Format('[ELASTIC] Error sending to %s: %s', [Endpoint, E.Message]));
+    begin
+      System.Writeln(Format('[ELASTIC] ? Error sending batch: %s', [E.Message]));
+      System.Writeln('[ELASTIC] Exception type: ' + E.ClassName);
+    end;
   end;
-  Stream.Free;
-end;
-
-procedure TElasticAPMProvider.DoInitialize;
-begin
-  FHttpClient := THTTPClient.Create;
-  FHttpClient.UserAgent := 'ObservabilitySDK4D-Elastic/1.0';
-  
-  FServerUrl := FConfig.ServerUrl;
-  FApiKey := FConfig.ApiKey;
-end;
-
-procedure TElasticAPMProvider.DoShutdown;
-begin
-  FHttpClient.Free;
-  FHttpClient := nil;
 end;
 
 function TElasticAPMProvider.CreateTracer: IObservabilityTracer;
@@ -200,7 +243,7 @@ begin
   Context.ServiceName := FConfig.ServiceName;
   Context.ServiceVersion := FConfig.ServiceVersion;
   Context.Environment := FConfig.Environment;
-  
+
   Result := TElasticTracer.Create(Context, Self);
 end;
 
@@ -212,7 +255,7 @@ begin
   Context.ServiceName := FConfig.ServiceName;
   Context.ServiceVersion := FConfig.ServiceVersion;
   Context.Environment := FConfig.Environment;
-  
+
   Result := TElasticLogger.Create(Context, Self);
 end;
 
@@ -224,92 +267,161 @@ begin
   Context.ServiceName := FConfig.ServiceName;
   Context.ServiceVersion := FConfig.ServiceVersion;
   Context.Environment := FConfig.Environment;
-  
+
   Result := TElasticMetrics.Create(Context, Self);
 end;
 
 { TElasticSpan }
 
-constructor TElasticSpan.Create(const Name: string; const Context: IObservabilityContext; 
+constructor TElasticSpan.Create(const Name: string; const Context: IObservabilityContext;
   const ElasticProvider: TElasticAPMProvider);
 begin
   inherited Create(Name, Context);
   FElasticProvider := ElasticProvider;
 end;
 
-function TElasticSpan.ToElasticJSON: TJSONObject;
+function TElasticSpan.ToElasticJSON(const IsTransaction: Boolean = True): TJSONObject;
 var
-  StartTimeMicros, DurationMicros: Int64;
   Key: string;
+  ContextObj, CustomObj, SpanCountObj: TJSONObject;
 begin
   Result := TJSONObject.Create;
-  
-  // Convert to microseconds since epoch
-  StartTimeMicros := Trunc((FStartTime - UnixDateDelta) * MSecsPerDay * 1000);
-  DurationMicros := Trunc(GetDuration * 1000);
-  
-  Result.AddPair('id', FSpanId);
-  Result.AddPair('trace_id', FTraceId);
-  if not FParentSpanId.IsEmpty then
-    Result.AddPair('parent_id', FParentSpanId);
-  Result.AddPair('name', FName);
-  Result.AddPair('type', 'custom');
-  Result.AddPair('timestamp', TJSONNumber.Create(StartTimeMicros));
-  Result.AddPair('duration', TJSONNumber.Create(DurationMicros));
-  
-  // Add outcome
-  case FOutcome of
-    Success: Result.AddPair('outcome', 'success');
-    Failure: Result.AddPair('outcome', 'failure');
-    Unknown: Result.AddPair('outcome', 'unknown');
-  end;
-  
-  // Add context with custom fields
-  if FAttributes.Count > 0 then
-  begin
-    var ContextObj := TJSONObject.Create;
-    var CustomObj := TJSONObject.Create;
-    
-    for Key in FAttributes.Keys do
-      CustomObj.AddPair(Key, FAttributes[Key]);
-    
-    ContextObj.AddPair('custom', CustomObj);
-    Result.AddPair('context', ContextObj);
+  SpanCountObj := nil;
+  ContextObj := nil;
+  CustomObj := nil;
+
+  try
+    FDuration := MilliSecondsBetween(now, FStartTime);
+
+    Result.AddPair('id', FSpanId);
+    Result.AddPair('trace_id', FTraceId);
+    if not FParentSpanId.IsEmpty then
+      Result.AddPair('parent_id', FParentSpanId);
+    Result.AddPair('name', FName);
+
+    if IsTransaction then
+    begin
+      Result.AddPair('type', 'request'); // Standard transaction type
+      // Required field for transactions: span_count (number of child spans)
+      SpanCountObj := TJSONObject.Create;
+      SpanCountObj.AddPair('started', TJSONNumber.Create(FChildSpanCount)); // Use real child span count
+      Result.AddPair('span_count', SpanCountObj);
+      SpanCountObj := nil; // Ownership transferred to Result
+    end
+    else
+    begin
+      Result.AddPair('type', 'custom'); // Standard span type
+      // Spans don't need span_count
+    end;
+
+    Result.AddPair('timestamp', TJSONNumber.Create(Ftimestamp));
+    Result.AddPair('duration', TJSONNumber.Create(FDuration));
+
+    // Add outcome
+    case FOutcome of
+      Success:
+        Result.AddPair('outcome', 'success');
+      Failure:
+        Result.AddPair('outcome', 'failure');
+      Unknown:
+        Result.AddPair('outcome', 'unknown');
+    end;
+
+    // Add context with custom fields
+    if FAttributes.Count > 0 then
+    begin
+      ContextObj := TJSONObject.Create;
+      CustomObj := TJSONObject.Create;
+
+      for Key in FAttributes.Keys do
+        CustomObj.AddPair(Key, FAttributes[Key]);
+
+      ContextObj.AddPair('custom', CustomObj);
+      CustomObj := nil; // Ownership transferred to ContextObj
+
+      Result.AddPair('context', ContextObj);
+      ContextObj := nil; // Ownership transferred to Result
+    end;
+
+  except
+    SpanCountObj.Free;
+    CustomObj.Free;
+    ContextObj.Free;
+    raise;
   end;
 end;
 
 procedure TElasticSpan.DoFinish;
 var
-  SpanData: TJSONObject;
+  MetadataWrapper, DataObj: TJSONObject;
+  BatchData: string;
+  IsRootTransaction: Boolean;
 begin
-  SpanData := ToElasticJSON;
+  // Determine if this is a root transaction (no parent) or a child span
+  IsRootTransaction := FParentSpanId.IsEmpty;
+
+  // Create metadata wrapper object (required for Elastic APM)
+  MetadataWrapper := TJSONObject.Create;
   try
-    FElasticProvider.SendToElastic(SpanData, 'intake/v2/events');
+    MetadataWrapper.AddPair('metadata', FElasticProvider.CreateMetadataObject);
+
+    // Create transaction or span wrapper based on hierarchy
+    DataObj := TJSONObject.Create;
+    try
+      if IsRootTransaction then
+        DataObj.AddPair('transaction', ToElasticJSON(True))
+      else
+        DataObj.AddPair('span', ToElasticJSON(False));
+
+      // Create NDJSON batch format
+      BatchData := MetadataWrapper.ToString + #10 + DataObj.ToString + #10;
+
+      FElasticProvider.SendBatchToElastic(BatchData);
+    finally
+      DataObj.Free;
+    end;
   finally
-    SpanData.Free;
+    MetadataWrapper.Free;
   end;
 end;
 
 procedure TElasticSpan.DoRecordException(const Exception: Exception);
 var
-  ErrorData: TJSONObject;
-  ExceptionObj: TJSONObject;
+  MetadataObj, ErrorObj, ExceptionObj: TJSONObject;
+  BatchData: string;
 begin
-  ErrorData := TJSONObject.Create;
+  // Create metadata
+  MetadataObj := TJSONObject.Create;
   try
-    ErrorData.AddPair('id', FSpanId + '_error');
-    ErrorData.AddPair('trace_id', FTraceId);
-    ErrorData.AddPair('parent_id', FSpanId);
-    ErrorData.AddPair('timestamp', TJSONNumber.Create(Trunc((Now - UnixDateDelta) * MSecsPerDay * 1000)));
-    
-    ExceptionObj := TJSONObject.Create;
-    ExceptionObj.AddPair('type', Exception.ClassName);
-    ExceptionObj.AddPair('message', Exception.Message);
-    ErrorData.AddPair('exception', ExceptionObj);
-    
-    FElasticProvider.SendToElastic(ErrorData, 'intake/v2/events');
+    MetadataObj.AddPair('metadata', FElasticProvider.CreateMetadataObject);
+
+    // Create error object
+    ErrorObj := TJSONObject.Create;
+    try
+      var
+      ErrorData := TJSONObject.Create;
+      ErrorData.AddPair('id', TGuid.NewGuid.ToString);
+      ErrorData.AddPair('trace_id', FTraceId);
+      ErrorData.AddPair('parent_id', FSpanId);
+      ErrorData.AddPair('timestamp',
+        TJSONNumber.Create(Trunc((TTimeZone.Local.ToUniversalTime(Now) - UnixDateDelta) * MSecsPerDay * 1000)));
+
+      ExceptionObj := TJSONObject.Create;
+      ExceptionObj.AddPair('type', Exception.ClassName);
+      ExceptionObj.AddPair('message', Exception.Message);
+      ErrorData.AddPair('exception', ExceptionObj);
+
+      ErrorObj.AddPair('error', ErrorData);
+
+      // Create NDJSON batch
+      BatchData := MetadataObj.ToString + #10 + ErrorObj.ToString + #10;
+      FElasticProvider.SendBatchToElastic(BatchData);
+
+    finally
+      ErrorObj.Free;
+    end;
   finally
-    ErrorData.Free;
+    MetadataObj.Free;
   end;
 end;
 
@@ -348,7 +460,7 @@ var
 begin
   TraceParent := Headers.Values['elastic-apm-traceparent'];
   Context := TObservabilityContext.CreateNew;
-  
+
   if not TraceParent.IsEmpty then
   begin
     Parts := TraceParent.Split(['-']);
@@ -358,7 +470,6 @@ begin
       Context.SpanId := Parts[2];
     end;
   end;
-  
   Result := Context;
 end;
 
@@ -373,61 +484,83 @@ end;
 function TElasticLogger.LogLevelToElastic(const Level: TLogLevel): string;
 begin
   case Level of
-    llTrace: Result := 'trace';
-    llDebug: Result := 'debug';
-    llInfo: Result := 'info';
-    llWarning: Result := 'warning';
-    llError: Result := 'error';
-    llCritical: Result := 'critical';
+    llTrace:
+      Result := 'trace';
+    llDebug:
+      Result := 'debug';
+    llInfo:
+      Result := 'info';
+    llWarning:
+      Result := 'warning';
+    llError:
+      Result := 'error';
+    llCritical:
+      Result := 'critical';
   else
     Result := 'info';
   end;
 end;
 
-procedure TElasticLogger.DoLog(const Level: TLogLevel; const Message: string; 
+procedure TElasticLogger.DoLog(const Level: TLogLevel; const Message: string;
   const Attributes: TDictionary<string, string>; const Exception: Exception);
 var
+  MetadataObj, LogObj: TJSONObject;
   LogEntry: TJSONObject;
+  BatchData: string;
   Key: string;
 begin
-  LogEntry := TJSONObject.Create;
+  // Create metadata
+  MetadataObj := TJSONObject.Create;
   try
-    LogEntry.AddPair('@timestamp', FormatDateTime('yyyy-mm-dd"T"hh:nn:ss.zzz"Z"', TTimeZone.Local.ToUniversalTime(Now)));
-    LogEntry.AddPair('log.level', LogLevelToElastic(Level));
-    LogEntry.AddPair('message', Message);
-    LogEntry.AddPair('service.name', FContext.ServiceName);
-    LogEntry.AddPair('service.version', FContext.ServiceVersion);
-    LogEntry.AddPair('service.environment', FContext.Environment);
-    
-    // Add trace correlation
-    if not FContext.TraceId.IsEmpty then
-    begin
-      LogEntry.AddPair('trace.id', FContext.TraceId);
-      LogEntry.AddPair('span.id', FContext.SpanId);
+    MetadataObj.AddPair('metadata', FElasticProvider.CreateMetadataObject);
+
+    // Create log object
+    LogObj := TJSONObject.Create;
+    try
+      LogEntry := TJSONObject.Create;
+      LogEntry.AddPair('@timestamp', FormatDateTime('yyyy-mm-dd"T"hh:nn:ss.zzz"Z"', TTimeZone.Local.ToUniversalTime(Now)));
+      LogEntry.AddPair('log.level', LogLevelToElastic(Level));
+      LogEntry.AddPair('message', Message);
+      LogEntry.AddPair('service.name', FContext.ServiceName);
+      LogEntry.AddPair('service.version', FContext.ServiceVersion);
+      LogEntry.AddPair('service.environment', FContext.Environment);
+
+      // Add trace correlation
+      if not FContext.TraceId.IsEmpty then
+      begin
+        LogEntry.AddPair('trace.id', FContext.TraceId);
+        LogEntry.AddPair('span.id', FContext.SpanId);
+      end;
+
+      // Add custom attributes
+      if Assigned(Attributes) then
+      begin
+        for Key in Attributes.Keys do
+          LogEntry.AddPair('labels.' + Key, Attributes[Key]);
+      end;
+
+      // Add global attributes
+      for Key in FAttributes.Keys do
+        LogEntry.AddPair('labels.' + Key, FAttributes[Key]);
+
+      // Add exception details
+      if Assigned(Exception) then
+      begin
+        LogEntry.AddPair('error.type', Exception.ClassName);
+        LogEntry.AddPair('error.message', Exception.Message);
+      end;
+
+      LogObj.AddPair('log', LogEntry);
+
+      // Create NDJSON batch
+      BatchData := MetadataObj.ToString + #10 + LogObj.ToString + #10;
+      FElasticProvider.SendBatchToElastic(BatchData);
+
+    finally
+      LogObj.Free;
     end;
-    
-    // Add custom attributes
-    if Assigned(Attributes) then
-    begin
-      for Key in Attributes.Keys do
-        LogEntry.AddPair('labels.' + Key, Attributes[Key]);
-    end;
-    
-    // Add global attributes
-    for Key in FAttributes.Keys do
-      LogEntry.AddPair('labels.' + Key, FAttributes[Key]);
-    
-    // Add exception details
-    if Assigned(Exception) then
-    begin
-      LogEntry.AddPair('error.type', Exception.ClassName);
-      LogEntry.AddPair('error.message', Exception.Message);
-    end;
-    
-    FElasticProvider.SendToElastic(LogEntry, 'intake/v2/events');
-    
   finally
-    LogEntry.Free;
+    MetadataObj.Free;
   end;
 end;
 
@@ -440,8 +573,29 @@ begin
 end;
 
 procedure TElasticMetrics.SendMetricSet(const Metrics: TJSONObject);
+var
+  MetadataObj, MetricObj: TJSONObject;
+  BatchData: string;
 begin
-  FElasticProvider.SendToElastic(Metrics, 'intake/v2/events');
+  // Create metadata
+  MetadataObj := TJSONObject.Create;
+  try
+    MetadataObj.AddPair('metadata', FElasticProvider.CreateMetadataObject);
+
+    // Create metric object
+    MetricObj := TJSONObject.Create;
+    try
+      MetricObj.AddPair('metricset', Metrics);
+
+      // Create NDJSON batch
+      BatchData := MetadataObj.ToString + #10 + MetricObj.ToString + #10;
+      FElasticProvider.SendBatchToElastic(BatchData);
+    finally
+      MetricObj.Free;
+    end;
+  finally
+    MetadataObj.Free;
+  end;
 end;
 
 procedure TElasticMetrics.DoCounter(const Name: string; const Value: Double; const Tags: TDictionary<string, string>);
@@ -451,35 +605,33 @@ var
   Key: string;
 begin
   MetricData := TJSONObject.Create;
-  try
-    MetricData.AddPair('timestamp', TJSONNumber.Create(Trunc((Now - UnixDateDelta) * MSecsPerDay * 1000)));
-    
-    SamplesObj := TJSONObject.Create;
-    SamplesObj.AddPair(Name + '.count', TJSONObject.Create.AddPair('value', TJSONNumber.Create(Value)));
-    MetricData.AddPair('samples', SamplesObj);
-    
-    // Add tags
-    if (Assigned(Tags) and (Tags.Count > 0)) or (FGlobalTags.Count > 0) then
+  
+  // Add required timestamp in microseconds since Unix epoch
+  MetricData.AddPair('timestamp', TJSONNumber.Create(Trunc((TTimeZone.Local.ToUniversalTime(Now) - UnixDateDelta) * MSecsPerDay * 1000)));
+
+  SamplesObj := TJSONObject.Create;
+  SamplesObj.AddPair(Name + '.count', TJSONObject.Create.AddPair('value', TJSONNumber.Create(Value)));
+  MetricData.AddPair('samples', SamplesObj);
+
+  // Add tags
+  if (Assigned(Tags) and (Tags.Count > 0)) or (FGlobalTags.Count > 0) then
+  begin
+    var
+    TagsObj := TJSONObject.Create;
+
+    if Assigned(Tags) then
     begin
-      var TagsObj := TJSONObject.Create;
-      
-      if Assigned(Tags) then
-      begin
-        for Key in Tags.Keys do
-          TagsObj.AddPair(Key, Tags[Key]);
-      end;
-      
-      for Key in FGlobalTags.Keys do
-        TagsObj.AddPair(Key, FGlobalTags[Key]);
-        
-      MetricData.AddPair('tags', TagsObj);
+      for Key in Tags.Keys do
+        TagsObj.AddPair(Key, Tags[Key]);
     end;
-    
-    SendMetricSet(MetricData);
-    
-  finally
-    MetricData.Free;
+
+    for Key in FGlobalTags.Keys do
+      TagsObj.AddPair(Key, FGlobalTags[Key]);
+
+    MetricData.AddPair('tags', TagsObj);
   end;
+
+  SendMetricSet(MetricData);
 end;
 
 procedure TElasticMetrics.DoGauge(const Name: string; const Value: Double; const Tags: TDictionary<string, string>);
@@ -489,35 +641,32 @@ var
   Key: string;
 begin
   MetricData := TJSONObject.Create;
-  try
-    MetricData.AddPair('timestamp', TJSONNumber.Create(Trunc((Now - UnixDateDelta) * MSecsPerDay * 1000)));
-    
-    SamplesObj := TJSONObject.Create;
-    SamplesObj.AddPair(Name + '.gauge', TJSONObject.Create.AddPair('value', TJSONNumber.Create(Value)));
-    MetricData.AddPair('samples', SamplesObj);
-    
-    // Add tags
-    if (Assigned(Tags) and (Tags.Count > 0)) or (FGlobalTags.Count > 0) then
+  
+  // Add required timestamp in microseconds since Unix epoch
+  MetricData.AddPair('timestamp', TJSONNumber.Create(Trunc((TTimeZone.Local.ToUniversalTime(Now) - UnixDateDelta) * MSecsPerDay * 1000)));
+
+  SamplesObj := TJSONObject.Create;
+  SamplesObj.AddPair(Name + '.gauge', TJSONObject.Create.AddPair('value', TJSONNumber.Create(Value)));
+  MetricData.AddPair('samples', SamplesObj);
+
+  // Add tags
+  if (Assigned(Tags) and (Tags.Count > 0)) or (FGlobalTags.Count > 0) then
+  begin
+    var
+    TagsObj := TJSONObject.Create;
+
+    if Assigned(Tags) then
     begin
-      var TagsObj := TJSONObject.Create;
-      
-      if Assigned(Tags) then
-      begin
-        for Key in Tags.Keys do
-          TagsObj.AddPair(Key, Tags[Key]);
-      end;
-      
-      for Key in FGlobalTags.Keys do
-        TagsObj.AddPair(Key, FGlobalTags[Key]);
-        
-      MetricData.AddPair('tags', TagsObj);
+      for Key in Tags.Keys do
+        TagsObj.AddPair(Key, Tags[Key]);
     end;
-    
-    SendMetricSet(MetricData);
-    
-  finally
-    MetricData.Free;
+
+    for Key in FGlobalTags.Keys do
+      TagsObj.AddPair(Key, FGlobalTags[Key]);
+
+    MetricData.AddPair('tags', TagsObj);
   end;
+  SendMetricSet(MetricData);
 end;
 
 procedure TElasticMetrics.DoHistogram(const Name: string; const Value: Double; const Tags: TDictionary<string, string>);
@@ -527,35 +676,32 @@ var
   Key: string;
 begin
   MetricData := TJSONObject.Create;
-  try
-    MetricData.AddPair('timestamp', TJSONNumber.Create(Trunc((Now - UnixDateDelta) * MSecsPerDay * 1000)));
-    
-    SamplesObj := TJSONObject.Create;
-    SamplesObj.AddPair(Name + '.histogram', TJSONObject.Create.AddPair('value', TJSONNumber.Create(Value)));
-    MetricData.AddPair('samples', SamplesObj);
-    
-    // Add tags
-    if (Assigned(Tags) and (Tags.Count > 0)) or (FGlobalTags.Count > 0) then
+  
+  // Add required timestamp in microseconds since Unix epoch
+  MetricData.AddPair('timestamp', TJSONNumber.Create(Trunc((TTimeZone.Local.ToUniversalTime(Now) - UnixDateDelta) * MSecsPerDay * 1000)));
+
+  SamplesObj := TJSONObject.Create;
+  SamplesObj.AddPair(Name + '.histogram', TJSONObject.Create.AddPair('value', TJSONNumber.Create(Value)));
+  MetricData.AddPair('samples', SamplesObj);
+
+  // Add tags
+  if (Assigned(Tags) and (Tags.Count > 0)) or (FGlobalTags.Count > 0) then
+  begin
+    var
+    TagsObj := TJSONObject.Create;
+
+    if Assigned(Tags) then
     begin
-      var TagsObj := TJSONObject.Create;
-      
-      if Assigned(Tags) then
-      begin
-        for Key in Tags.Keys do
-          TagsObj.AddPair(Key, Tags[Key]);
-      end;
-      
-      for Key in FGlobalTags.Keys do
-        TagsObj.AddPair(Key, FGlobalTags[Key]);
-        
-      MetricData.AddPair('tags', TagsObj);
+      for Key in Tags.Keys do
+        TagsObj.AddPair(Key, Tags[Key]);
     end;
-    
-    SendMetricSet(MetricData);
-    
-  finally
-    MetricData.Free;
+
+    for Key in FGlobalTags.Keys do
+      TagsObj.AddPair(Key, FGlobalTags[Key]);
+
+    MetricData.AddPair('tags', TagsObj);
   end;
+  SendMetricSet(MetricData);
 end;
 
 procedure TElasticMetrics.DoSummary(const Name: string; const Value: Double; const Tags: TDictionary<string, string>);

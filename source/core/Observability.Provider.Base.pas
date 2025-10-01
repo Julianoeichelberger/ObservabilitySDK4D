@@ -3,7 +3,7 @@
 
   Observability SDK for Delphi.
 
-  Copyright (C) 2025 Juliano Eichelberger 
+  Copyright (C) 2025 Juliano Eichelberger
 
   License Notice:
   This software is licensed under the terms of the MIT License.
@@ -35,14 +35,14 @@ type
     FMetrics: IObservabilityMetrics;
     FInitialized: Boolean;
     FLock: TCriticalSection;
-    
+
     // Abstract methods that must be implemented by specific providers
-    procedure DoInitialize; virtual; abstract;
-    procedure DoShutdown; virtual; abstract;
+    procedure DoInitialize; virtual;
+    procedure DoShutdown; virtual;
     function CreateTracer: IObservabilityTracer; virtual; abstract;
     function CreateLogger: IObservabilityLogger; virtual; abstract;
     function CreateMetrics: IObservabilityMetrics; virtual; abstract;
-    
+
     // Template methods that can be overridden
     procedure ValidateConfiguration; virtual;
     procedure SetupComponents; virtual;
@@ -52,7 +52,7 @@ type
     function GetTracer: IObservabilityTracer; virtual;
     function GetLogger: IObservabilityLogger; virtual;
     function GetMetrics: IObservabilityMetrics; virtual;
-    
+
     procedure Configure(const Config: IObservabilityConfig); virtual;
     procedure Initialize; virtual;
     procedure Shutdown; virtual;
@@ -70,16 +70,17 @@ type
     FTraceId: string;
     FParentSpanId: string;
     FKind: TSpanKind;
+    Ftimestamp: Int64;
+    FDuration: Int64;
     FStartTime: TDateTime;
     FEndTime: TDateTime;
     FOutcome: TOutcome;
     FAttributes: TDictionary<string, string>;
     FContext: IObservabilityContext;
     FFinished: Boolean;
+    FChildSpanCount: Integer; // Counter for child spans
     FLock: TCriticalSection;
-    
     function GenerateId: string;
-    
     // Abstract methods
     procedure DoFinish; virtual; abstract;
     procedure DoRecordException(const Exception: Exception); virtual; abstract;
@@ -91,15 +92,17 @@ type
     function GetParentSpanId: string; virtual;
     function GetKind: TSpanKind; virtual;
     function GetStartTime: TDateTime; virtual;
-    function GetEndTime: TDateTime; virtual;
-    function GetDuration: Double; virtual;
+    function GetEndTime: TDateTime; virtual; 
     function GetOutcome: TOutcome; virtual;
     function GetAttributes: TDictionary<string, string>; virtual;
     function GetContext: IObservabilityContext; virtual;
-    
+    function GetChildSpanCount: Integer; virtual;
+    function GetDuration: Double; virtual; // Duration in milliseconds
+
     procedure SetName(const Value: string); virtual;
     procedure SetKind(const Value: TSpanKind); virtual;
     procedure SetOutcome(const Value: TOutcome); virtual;
+    procedure IncrementChildSpanCount; virtual; // Method to increment child span counter
     procedure AddAttribute(const Key, Value: string); overload; virtual;
     procedure AddAttribute(const Key: string; const Value: Integer); overload; virtual;
     procedure AddAttribute(const Key: string; const Value: Double); overload; virtual;
@@ -118,13 +121,13 @@ type
     FContext: IObservabilityContext;
     FActiveSpan: IObservabilitySpan;
     FLock: TCriticalSection;
-    
     // Abstract methods
     function DoCreateSpan(const Name: string; const Context: IObservabilityContext): IObservabilitySpan; virtual; abstract;
   protected
     function StartSpan(const Name: string): IObservabilitySpan; overload; virtual;
     function StartSpan(const Name: string; const Kind: TSpanKind): IObservabilitySpan; overload; virtual;
-    function StartSpan(const Name: string; const Kind: TSpanKind; const Parent: IObservabilitySpan): IObservabilitySpan; overload; virtual;
+    function StartSpan(const Name: string; const Kind: TSpanKind; const Parent: IObservabilitySpan): IObservabilitySpan;
+      overload; virtual;
     function StartSpan(const Name: string; const Context: IObservabilityContext): IObservabilitySpan; overload; virtual;
     function GetActiveSpan: IObservabilitySpan; virtual;
     function GetContext: IObservabilityContext; virtual;
@@ -142,15 +145,17 @@ type
     FContext: IObservabilityContext;
     FAttributes: TDictionary<string, string>;
     FLock: TCriticalSection;
-    
     // Abstract methods
-    procedure DoLog(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>; const Exception: Exception); virtual; abstract;
+    procedure DoLog(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>;
+      const Exception: Exception); virtual; abstract;
   public
     procedure Log(const Level: TLogLevel; const Message: string); overload; virtual;
     procedure Log(const Level: TLogLevel; const Message: string; const Args: array of const); overload; virtual;
     procedure Log(const Level: TLogLevel; const Message: string; const Exception: Exception); overload; virtual;
-    procedure Log(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>); overload; virtual;
-    procedure Log(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>; const Exception: Exception); overload; virtual;
+    procedure Log(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>);
+      overload; virtual;
+    procedure Log(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>;
+      const Exception: Exception); overload; virtual;
   protected
     procedure Trace(const Message: string); overload; virtual;
     procedure Trace(const Message: string; const Args: array of const); overload; virtual;
@@ -166,7 +171,7 @@ type
     procedure Critical(const Message: string); overload; virtual;
     procedure Critical(const Message: string; const Exception: Exception); overload; virtual;
     procedure Critical(const Message: string; const Args: array of const); overload; virtual;
-    
+
     procedure SetLevel(const Level: TLogLevel); virtual;
     function GetLevel: TLogLevel; virtual;
     procedure AddAttribute(const Key, Value: string); virtual;
@@ -182,7 +187,7 @@ type
     FContext: IObservabilityContext;
     FGlobalTags: TDictionary<string, string>;
     FLock: TCriticalSection;
-    
+
     // Abstract methods
     procedure DoCounter(const Name: string; const Value: Double; const Tags: TDictionary<string, string>); virtual; abstract;
     procedure DoGauge(const Name: string; const Value: Double; const Tags: TDictionary<string, string>); virtual; abstract;
@@ -197,7 +202,7 @@ type
     procedure Histogram(const Name: string; const Value: Double; const Tags: TDictionary<string, string>); overload; virtual;
     procedure Summary(const Name: string; const Value: Double); overload; virtual;
     procedure Summary(const Name: string; const Value: Double; const Tags: TDictionary<string, string>); overload; virtual;
-    
+
     procedure SetContext(const Context: IObservabilityContext); virtual;
     function GetContext: IObservabilityContext; virtual;
     procedure AddGlobalTag(const Key, Value: string); virtual;
@@ -209,7 +214,7 @@ type
 implementation
 
 uses
-  System.DateUtils;
+  System.DateUtils, Observability.Utils;
 
 { TBaseObservabilityProvider }
 
@@ -225,6 +230,16 @@ begin
   Shutdown;
   FLock.Free;
   inherited Destroy;
+end;
+
+procedure TBaseObservabilityProvider.DoInitialize;
+begin
+  // virtual
+end;
+
+procedure TBaseObservabilityProvider.DoShutdown;
+begin
+  // virtual
 end;
 
 procedure TBaseObservabilityProvider.Configure(const Config: IObservabilityConfig);
@@ -244,10 +259,10 @@ begin
   try
     if FInitialized then
       Exit;
-      
+
     if not Assigned(FConfig) then
       raise EConfigurationError.Create('Configuration not set');
-      
+
     SetupComponents;
     DoInitialize;
     FInitialized := True;
@@ -262,7 +277,7 @@ begin
   try
     if not FInitialized then
       Exit;
-      
+
     DoShutdown;
     FTracer := nil;
     FLogger := nil;
@@ -287,7 +302,7 @@ procedure TBaseObservabilityProvider.ValidateConfiguration;
 begin
   if not Assigned(FConfig) then
     raise EConfigurationError.Create('Configuration is required');
-    
+
   if FConfig.ServiceName.IsEmpty then
     raise EConfigurationError.Create('Service name is required');
 end;
@@ -296,10 +311,10 @@ procedure TBaseObservabilityProvider.SetupComponents;
 begin
   if otTracing in GetSupportedTypes then
     FTracer := CreateTracer;
-    
+
   if otLogging in GetSupportedTypes then
     FLogger := CreateLogger;
-    
+
   if otMetrics in GetSupportedTypes then
     FMetrics := CreateMetrics;
 end;
@@ -335,12 +350,17 @@ begin
   FContext := Context;
   FSpanId := GenerateId;
   FTraceId := Context.TraceId;
-  FParentSpanId := Context.SpanId;
+  FParentSpanId := Context.ParentSpanId; // Use ParentSpanId from context, not SpanId
   FStartTime := Now;
+  Ftimestamp := TTimestampEpoch.Get(FStartTime);
   FKind := skInternal;
   FOutcome := Unknown;
   FAttributes := TDictionary<string, string>.Create;
   FFinished := False;
+  FChildSpanCount := 0; // Initialize child span counter
+  
+  // Update context with this span's ID so future children can reference it correctly
+  FContext.SpanId := FSpanId;
 end;
 
 destructor TBaseObservabilitySpan.Destroy;
@@ -387,14 +407,6 @@ begin
   Result := FEndTime;
 end;
 
-function TBaseObservabilitySpan.GetDuration: Double;
-begin
-  if FEndTime > 0 then
-    Result := MilliSecondsBetween(FEndTime, FStartTime)
-  else
-    Result := MilliSecondsBetween(Now, FStartTime);
-end;
-
 function TBaseObservabilitySpan.GetOutcome: TOutcome;
 begin
   Result := FOutcome;
@@ -408,6 +420,40 @@ end;
 function TBaseObservabilitySpan.GetContext: IObservabilityContext;
 begin
   Result := FContext;
+end;
+
+function TBaseObservabilitySpan.GetChildSpanCount: Integer;
+begin
+  FLock.Enter;
+  try
+    Result := FChildSpanCount;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TBaseObservabilitySpan.GetDuration: Double;
+begin
+  FLock.Enter;
+  try
+    if FEndTime > 0 then
+      Result := MilliSecondsBetween(FEndTime, FStartTime)
+    else
+      Result := MilliSecondsBetween(TTimeZone.Local.ToUniversalTime(Now), FStartTime); // Use UTC time
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TBaseObservabilitySpan.IncrementChildSpanCount;
+begin
+  FLock.Enter;
+  try
+    if not FFinished then
+      Inc(FChildSpanCount);
+  finally
+    FLock.Leave;
+  end;
 end;
 
 procedure TBaseObservabilitySpan.SetName(const Value: string);
@@ -505,8 +551,8 @@ begin
   try
     if FFinished then
       Exit;
-      
-    FEndTime := Now;
+
+    FEndTime := TTimeZone.Local.ToUniversalTime(Now); // Use UTC time
     FOutcome := Outcome;
     FFinished := True;
     DoFinish;
@@ -540,7 +586,8 @@ begin
   Result := StartSpan(Name, Kind, nil);
 end;
 
-function TBaseObservabilityTracer.StartSpan(const Name: string; const Kind: TSpanKind; const Parent: IObservabilitySpan): IObservabilitySpan;
+function TBaseObservabilityTracer.StartSpan(const Name: string; const Kind: TSpanKind; const Parent: IObservabilitySpan)
+  : IObservabilitySpan;
 var
   Context: IObservabilityContext;
 begin
@@ -548,7 +595,7 @@ begin
     Context := Parent.Context.Clone
   else
     Context := FContext.Clone;
-    
+
   Result := StartSpan(Name, Context);
   Result.Kind := Kind;
 end;
@@ -649,12 +696,14 @@ begin
   Log(Level, Message, nil, Exception);
 end;
 
-procedure TBaseObservabilityLogger.Log(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>);
+procedure TBaseObservabilityLogger.Log(const Level: TLogLevel; const Message: string;
+  const Attributes: TDictionary<string, string>);
 begin
   Log(Level, Message, Attributes, nil);
 end;
 
-procedure TBaseObservabilityLogger.Log(const Level: TLogLevel; const Message: string; const Attributes: TDictionary<string, string>; const Exception: Exception);
+procedure TBaseObservabilityLogger.Log(const Level: TLogLevel; const Message: string;
+  const Attributes: TDictionary<string, string>; const Exception: Exception);
 begin
   FLock.Enter;
   try

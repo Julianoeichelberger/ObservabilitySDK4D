@@ -465,7 +465,7 @@ function TObservabilityConfig.GetDefaultServiceVersion: string;
 {$IFDEF MSWINDOWS}
 var
   FileName: string;
-  InfoSize, VerInfoSize: DWORD;
+  InfoSize: DWORD;
   VerInfo: Pointer;
   VerValueSize: DWORD;
   VerValue: PVSFixedFileInfo;
