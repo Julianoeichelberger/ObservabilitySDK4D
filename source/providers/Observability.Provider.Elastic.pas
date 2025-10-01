@@ -35,36 +35,128 @@ uses
   Observability.HttpClient;
 
 type
+  /// <summary>
+  /// Elastic APM provider implementation for the ObservabilitySDK4D framework.
+  /// This provider integrates with Elastic APM Server to send tracing, logging, and metrics data
+  /// using the APM v2 API with NDJSON format. Supports transactions, spans, errors, and metrics
+  /// with proper correlation and real-time data transmission.
+  /// 
+  /// Features:
+  /// - Full APM v2 protocol compliance
+  /// - NDJSON batch format for efficient data transmission
+  /// - Automatic parent-child span correlation
+  /// - System and application metrics collection
+  /// - Error and exception tracking
+  /// - Configurable server endpoints and authentication
+  /// </summary>
   TElasticAPMProvider = class(TBaseObservabilityProvider)
   private
     FServerUrl: string;
     FApiKey: string;
+    /// <summary>
+    /// Sends a batch of observability data to Elastic APM Server using NDJSON format.
+    /// Handles HTTP communication, authentication, and error handling.
+    /// </summary>
+    /// <param name="BatchData">The NDJSON formatted batch data to send</param>
     procedure SendBatchToElastic(const BatchData: string);
+    
+    /// <summary>
+    /// Creates the metadata object required by Elastic APM protocol.
+    /// Metadata contains service information, runtime details, and environment data.
+    /// </summary>
+    /// <returns>JSON object containing APM metadata</returns>
     function CreateMetadataObject: TJSONObject;
   protected
+    /// <summary>
+    /// Returns the provider type identifier.
+    /// </summary>
+    /// <returns>TObservabilityProvider.opElastic</returns>
     function GetProviderType: TObservabilityProvider; override;
+    
+    /// <summary>
+    /// Returns the set of observability types supported by this provider.
+    /// Elastic APM supports all types: tracing, logging, and metrics.
+    /// </summary>
+    /// <returns>Set containing all observability types</returns>
     function GetSupportedTypes: TObservabilityTypeSet; override;
 
+    /// <summary>
+    /// Creates a new Elastic-specific tracer instance.
+    /// </summary>
+    /// <returns>Tracer implementation for Elastic APM</returns>
     function CreateTracer: IObservabilityTracer; override;
+    
+    /// <summary>
+    /// Creates a new Elastic-specific logger instance.
+    /// </summary>
+    /// <returns>Logger implementation for Elastic APM</returns>
     function CreateLogger: IObservabilityLogger; override;
+    
+    /// <summary>
+    /// Creates a new Elastic-specific metrics collector instance.
+    /// </summary>
+    /// <returns>Metrics implementation for Elastic APM</returns>
     function CreateMetrics: IObservabilityMetrics; override;
 
+    /// <summary>
+    /// Validates the provider configuration for required Elastic APM settings.
+    /// Checks server URL format and other required configuration parameters.
+    /// </summary>
     procedure ValidateConfiguration; override;
   public
+    /// <summary>
+    /// Creates a new instance of the Elastic APM provider.
+    /// Initializes the provider with default settings for Elastic APM integration.
+    /// </summary>
     constructor Create; override;
   end;
 
+  /// <summary>
+  /// Elastic APM specific implementation of spans for distributed tracing.
+  /// Handles conversion of span data to Elastic APM JSON format and manages
+  /// the distinction between transactions (root spans) and regular spans.
+  /// Integrates with Elastic APM's correlation model and timing requirements.
+  /// </summary>
   TElasticSpan = class(TBaseObservabilitySpan)
   private
     FElasticProvider: TElasticAPMProvider;
   protected
+    /// <summary>
+    /// Called when the span is finished to send data to Elastic APM.
+    /// Converts span data to Elastic JSON format and sends to APM server.
+    /// </summary>
     procedure DoFinish; override;
+    
+    /// <summary>
+    /// Records exception information in Elastic APM format.
+    /// Captures exception details and associates them with the span.
+    /// </summary>
+    /// <param name="Exception">The exception to record</param>
     procedure DoRecordException(const Exception: Exception); override;
+    
+    /// <summary>
+    /// Adds span events in Elastic APM format.
+    /// Events represent significant moments during span execution.
+    /// </summary>
+    /// <param name="Name">The name of the event</param>
+    /// <param name="Description">Description of the event</param>
     procedure DoAddEvent(const Name, Description: string); override;
   public
+    /// <summary>
+    /// Creates a new Elastic span instance.
+    /// </summary>
+    /// <param name="Name">The name of the span</param>
+    /// <param name="Context">The observability context for the span</param>
+    /// <param name="ElasticProvider">The Elastic provider instance</param>
     constructor Create(const Name: string; const Context: IObservabilityContext;
       const ElasticProvider: TElasticAPMProvider); reintroduce;
 
+    /// <summary>
+    /// Converts the span to Elastic APM JSON format.
+    /// Supports both transaction and span formats based on the IsTransaction parameter.
+    /// </summary>
+    /// <param name="IsTransaction">True to format as transaction, false as span</param>
+    /// <returns>JSON object in Elastic APM format</returns>
     function ToElasticJSON(const IsTransaction: Boolean = True): TJSONObject;
   end;
 

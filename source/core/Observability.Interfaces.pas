@@ -27,13 +27,81 @@ uses
 
 type
   // Enums básicos
-  TObservabilityProvider = (opElastic, opJaeger, opSentry, opDatadog, opOpenTelemetry, opConsole, opCustom);
-  TObservabilityType = (otTracing, otLogging, otMetrics, otAll);
+  /// <summary>
+  /// Enumeration of supported observability providers.
+  /// Each provider represents a different backend for collecting observability data.
+  /// </summary>
+  TObservabilityProvider = (
+    opElastic,        // Elastic APM for full observability stack
+    opJaeger,         // Jaeger for distributed tracing
+    opSentry,         // Sentry for error tracking and performance monitoring
+    opDatadog,        // Datadog APM for complete monitoring solution
+    opOpenTelemetry,  // OpenTelemetry standard (reserved for future use)
+    opConsole,        // Console output for development and debugging
+    opCustom          // Custom provider implementation
+  );
+  
+  /// <summary>
+  /// Types of observability data that can be collected.
+  /// Used to specify which capabilities a provider supports.
+  /// </summary>
+  TObservabilityType = (
+    otTracing,  // Distributed tracing with spans
+    otLogging,  // Structured logging
+    otMetrics,  // Application and system metrics
+    otAll       // All observability types
+  );
+  
+  /// <summary>
+  /// Set of observability types for specifying multiple capabilities.
+  /// </summary>
   TObservabilityTypeSet = set of TObservabilityType;
-  TLogLevel = (llTrace, llDebug, llInfo, llWarning, llError, llCritical);
-  TMetricType = (mtCounter, mtGauge, mtHistogram, mtSummary);
-  TSpanKind = (skClient, skServer, skConsumer, skProducer, skInternal);
-  TOutcome = (Success, Failure, Unknown);
+  
+  /// <summary>
+  /// Log severity levels from least to most severe.
+  /// Used to categorize log messages by importance and filter logs.
+  /// </summary>
+  TLogLevel = (
+    llTrace,    // Finest-grained informational events
+    llDebug,    // Fine-grained informational events for debugging
+    llInfo,     // Informational messages highlighting application progress
+    llWarning,  // Potentially harmful situations
+    llError,    // Error events that don't stop the application
+    llCritical  // Critical error events that might cause application termination
+  );
+  
+  /// <summary>
+  /// Types of metrics that can be collected.
+  /// Each type has different semantic meaning and aggregation behavior.
+  /// </summary>
+  TMetricType = (
+    mtCounter,   // Cumulative metric that only increases (e.g., request count)
+    mtGauge,     // Point-in-time metric that can go up or down (e.g., memory usage)
+    mtHistogram, // Distribution of values with configurable buckets (e.g., response times)
+    mtSummary    // Distribution with percentile calculations (e.g., percentiles)
+  );
+  
+  /// <summary>
+  /// Span kinds that indicate the type of operation being traced.
+  /// Used for proper visualization and understanding of distributed traces.
+  /// </summary>
+  TSpanKind = (
+    skClient,    // Span represents a request to a remote service
+    skServer,    // Span represents a server handling a request
+    skConsumer,  // Span represents a consumer receiving a message
+    skProducer,  // Span represents a producer sending a message
+    skInternal   // Span represents an internal operation within an application
+  );
+  
+  /// <summary>
+  /// Outcome of an operation indicating success, failure, or unknown status.
+  /// Used to categorize the result of spans and transactions for monitoring.
+  /// </summary>
+  TOutcome = (
+    Success,  // Operation completed successfully
+    Failure,  // Operation failed or encountered an error
+    Unknown   // Outcome is not known or not applicable
+  );
 
   // Forward declarations
   IObservabilitySpan = interface;
@@ -44,6 +112,12 @@ type
   IObservabilityConfig = interface;
 
   // Contexto compartilhado
+  /// <summary>
+  /// Interface that represents the observability context shared across all operations.
+  /// Context contains trace correlation information, service metadata, and user details.
+  /// It's used to maintain relationships between spans and provide consistent metadata
+  /// across all observability operations (tracing, logging, metrics).
+  /// </summary>
   IObservabilityContext = interface
     ['{A1B2C3D4-E5F6-7890-ABCD-1234567890AB}']
     function GetTraceId: string;
@@ -86,6 +160,12 @@ type
   end;
 
   // Interface para Span (Tracing)
+  /// <summary>
+  /// Interface that represents a span in distributed tracing.
+  /// Spans represent individual operations within a trace and contain timing information,
+  /// attributes, events, and outcome data. They form a tree structure through parent-child
+  /// relationships to represent the complete flow of a distributed operation.
+  /// </summary>
   IObservabilitySpan = interface
     ['{B2C3D4E5-F6A7-8901-BCDE-234567890ABC}']
     function GetName: string;
@@ -129,6 +209,12 @@ type
   end;
 
   // Interface para Tracer
+  /// <summary>
+  /// Interface for creating and managing spans in distributed tracing.
+  /// Tracers are responsible for starting new spans, managing active span context,
+  /// and handling trace propagation between services through header injection/extraction.
+  /// Each provider implements this interface to provide tracing capabilities.
+  /// </summary>
   IObservabilityTracer = interface
     ['{C3D4E5F6-A7B8-9012-CDEF-34567890ABCD}']
     function StartSpan(const Name: string): IObservabilitySpan; overload;
@@ -143,6 +229,12 @@ type
   end;
 
   // Interface para Logger
+  /// <summary>
+  /// Interface for structured logging with multiple severity levels.
+  /// Loggers provide methods for different log levels (trace, debug, info, warning, error, critical)
+  /// and support structured logging with attributes and exception details.
+  /// Logs are automatically correlated with active spans when available.
+  /// </summary>
   IObservabilityLogger = interface
     ['{D4E5F6A7-B8C9-0123-DEF0-4567890ABCDE}']
     procedure Log(const Level: TLogLevel; const Message: string); overload;
@@ -174,6 +266,12 @@ type
   end;
 
   // Interface para Metrics
+  /// <summary>
+  /// Interface for collecting and reporting application metrics.
+  /// Supports different metric types: counters (cumulative), gauges (point-in-time),
+  /// histograms (distributions), and summaries (percentile calculations).
+  /// Metrics can be tagged for additional dimensionality and filtering.
+  /// </summary>
   IObservabilityMetrics = interface
     ['{E5F6A7B8-C9D0-1234-EFAB-567890ABCDEF}']
     procedure Counter(const Name: string; const Value: Double = 1.0); overload;
@@ -191,6 +289,12 @@ type
   end;
 
   // Interface para Provider específico
+  /// <summary>
+  /// Interface implemented by all observability providers (Elastic APM, Jaeger, Sentry, etc.).
+  /// Providers encapsulate the specific implementation details for different observability backends
+  /// and offer unified access to tracing, logging, and metrics capabilities.
+  /// Each provider can support different combinations of observability types.
+  /// </summary>
   IObservabilityProvider = interface
     ['{F6A7B8C9-D0E1-2345-FABC-67890ABCDEF0}']
     function GetProviderType: TObservabilityProvider;
@@ -212,6 +316,12 @@ type
   end;
 
   // Interface para configuração
+  /// <summary>
+  /// Interface for provider configuration settings.
+  /// Contains all necessary parameters to configure observability providers including
+  /// service information, server endpoints, authentication, performance settings,
+  /// and custom properties. Each provider type may use different subsets of these properties.
+  /// </summary>
   IObservabilityConfig = interface
     ['{A7B8C9D0-E1F2-3456-ABCD-7890ABCDEF01}']
     function GetServiceName: string;
@@ -253,8 +363,13 @@ type
     property SupportedTypes: TObservabilityTypeSet read GetSupportedTypes write SetSupportedTypes;
     property CustomProperties: TDictionary<string, string> read GetCustomProperties;
   end;
-
-  // Interface principal do SDK
+ 
+  /// <summary>
+  /// Main interface for the ObservabilitySDK that provides unified access to all observability operations.
+  /// This interface defines the contract for the SDK singleton and manages multiple providers,
+  /// global context, and lifecycle operations. It serves as the foundation for the TObservability
+  /// static helper class and provides thread-safe access to all observability capabilities.
+  /// </summary>
   IObservabilitySDK = interface
     ['{A8B9C0D1-E2F3-4567-ABCD-890ABCDEF012}']
     procedure RegisterProvider(const Provider: IObservabilityProvider);
@@ -281,7 +396,17 @@ type
   end;
 
   // Exceções customizadas
+  /// <summary>
+  /// Base exception class for all observability-related errors.
+  /// Serves as the parent class for specific observability exceptions.
+  /// </summary>
   EObservabilityException = class(Exception);
+  
+  /// <summary>
+  /// Exception raised when attempting to access a provider that hasn't been registered.
+  /// This typically occurs when trying to set an active provider or get a specific provider
+  /// that was never registered with the SDK.
+  /// </summary>
   EProviderNotFound = class(EObservabilityException);
   EProviderNotInitialized = class(EObservabilityException);
   EConfigurationError = class(EObservabilityException);

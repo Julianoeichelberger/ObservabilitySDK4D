@@ -105,8 +105,7 @@ type
       ASynchronized: Boolean = True; AFreeThread: Boolean = True; AOnError: TOnExecRequest = nil);
   end;
 
-  IRequest = interface
-    ['{518B831C-12B1-35AB-E922-A191AB030991}']
+  IRequest = interface 
     function AcceptEncoding(const AAcceptEncoding: string): IRequest;
     function AcceptCharset(const AAcceptCharset: string): IRequest;
     function UserAgent(const AName: string): IRequest;

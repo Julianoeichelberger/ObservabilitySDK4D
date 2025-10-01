@@ -34,35 +34,79 @@ uses
   Observability.Interfaces;
 
 type
+  /// <summary>
+  /// Enumeration of collection intervals for system metrics.
+  /// Defines how frequently system metrics are automatically collected.
+  /// Lower intervals provide more granular monitoring but use more resources.
+  /// </summary>
   TSystemMetricsCollectionInterval = (
-    si5Seconds = 5000,
-    si10Seconds = 10000,
-    si30Seconds = 30000,
-    si1Minute = 60000,
-    si5Minutes = 300000
+    si5Seconds = 5000,      // High-frequency monitoring for performance testing
+    si10Seconds = 10000,    // Frequent monitoring for development
+    si30Seconds = 30000,    // Default balanced monitoring for production
+    si1Minute = 60000,      // Low-frequency monitoring for long-running services
+    si5Minutes = 300000     // Very low frequency for minimal overhead
   );
 
+  /// <summary>
+  /// Set of system metrics that can be collected.
+  /// Allows selective enabling/disabling of different metric categories
+  /// to balance monitoring coverage with performance overhead.
+  /// </summary>
   TSystemMetricsOptions = set of (
-    smoMemoryUsage,      // Application and system memory usage
-    smoCPUUsage,         // Application and system CPU usage
-    smoDiskIO,           // Disk I/O statistics
-    smoNetworkIO,        // Network I/O statistics
-    smoThreadCount,      // Thread count
+    smoMemoryUsage,      // Application and system memory usage metrics
+    smoCPUUsage,         // Application and system CPU usage percentages  
+    smoDiskIO,           // Disk I/O read/write byte statistics
+    smoNetworkIO,        // Network I/O received/sent byte statistics
+    smoThreadCount,      // Current thread count for the application
     smoHandleCount,      // Handle count (Windows) / File descriptor count (Linux)
-    smoGCMetrics         // Garbage collector metrics
+    smoGCMetrics         // Garbage collector and memory manager metrics
   );
 
+  /// <summary>
+  /// Interface for automatic system metrics collection and reporting.
+  /// Provides lifecycle management, configuration, and integration with observability providers.
+  /// Supports background collection with configurable intervals and selective metric categories.
+  /// Thread-safe operations for use in multi-threaded applications.
+  /// </summary>
   ISystemMetricsCollector = interface
     ['{B1C2D3E4-F5A6-7890-BCDE-234567890ABC}']
+    /// <summary>Starts automatic metric collection in background thread.</summary>
     procedure Start;
+    /// <summary>Stops automatic metric collection and cleans up resources.</summary>
     procedure Stop;
+    /// <summary>Checks if automatic collection is currently running.</summary>
     function IsRunning: Boolean;
+    /// <summary>Sets the collection interval frequency.</summary>
     procedure SetInterval(const Interval: TSystemMetricsCollectionInterval);
+    /// <summary>Sets which metric categories to collect.</summary>
     procedure SetOptions(const Options: TSystemMetricsOptions);
+    /// <summary>Sets the metrics provider for reporting collected metrics.</summary>
     procedure SetMetricsProvider(const Provider: IObservabilityMetrics);
+    /// <summary>Collects metrics immediately without waiting for interval.</summary>
     procedure CollectOnce; // Collect metrics immediately
   end;
 
+  /// <summary>
+  /// Concrete implementation of system metrics collector with cross-platform support.
+  /// Automatically collects various system and application metrics using platform-specific APIs.
+  /// Provides thread-safe operation with background collection and error resilience.
+  /// 
+  /// Key Features:
+  /// - Cross-platform support (Windows/Linux) with platform-specific optimizations
+  /// - Background collection using dedicated thread with configurable intervals
+  /// - Selective metric collection to minimize performance impact
+  /// - Silent failure handling to prevent application disruption
+  /// - Integration with any IObservabilityMetrics provider
+  /// - Real-time and scheduled collection modes
+  /// 
+  /// Collected Metrics:
+  /// - Memory: Application working set, system memory usage and availability
+  /// - CPU: Application and system CPU usage percentages
+  /// - Threads: Current thread count for the application
+  /// - Handles: Handle/file descriptor count
+  /// - I/O: Disk and network I/O statistics (platform dependent)
+  /// - GC: Garbage collector and memory manager metrics
+  /// </summary>
   TSystemMetricsCollector = class(TInterfacedObject, ISystemMetricsCollector)
   private
     FMetrics: IObservabilityMetrics;
@@ -74,65 +118,163 @@ type
     FLastSystemTime: TDateTime;
     
     // Memory metrics
+    /// <summary>Collects all memory-related metrics (application and system).</summary>
     procedure CollectMemoryMetrics;
+    /// <summary>Gets current application memory usage in bytes.</summary>
     function GetApplicationMemoryUsage: UInt64;
+    /// <summary>Gets system memory statistics [Used, Available, Total] in MB.</summary>
     function GetSystemMemoryUsage: TArray<Double>; // [Used, Available, Total] in MB
     
     // CPU metrics
+    /// <summary>Collects CPU usage metrics for application and system.</summary>
     procedure CollectCPUMetrics;
+    /// <summary>Gets current application CPU usage as percentage.</summary>
     function GetApplicationCPUUsage: Double; // Percentage
+    /// <summary>Gets current system-wide CPU usage as percentage.</summary>
     function GetSystemCPUUsage: Double; // Percentage
     
     // I/O metrics
+    /// <summary>Collects disk and network I/O statistics.</summary>
     procedure CollectIOMetrics;
+    /// <summary>Gets disk I/O statistics [ReadBytes, WriteBytes].</summary>
     function GetDiskIOStats: TArray<UInt64>; // [ReadBytes, WriteBytes]
+    /// <summary>Gets network I/O statistics [ReceivedBytes, SentBytes].</summary>
     function GetNetworkIOStats: TArray<UInt64>; // [ReceivedBytes, SentBytes]
     
     // System metrics
+    /// <summary>Collects system resource metrics (threads, handles).</summary>
     procedure CollectSystemMetrics;
+    /// <summary>Gets current thread count for the application.</summary>
     function GetThreadCount: Integer;
+    /// <summary>Gets current handle/file descriptor count.</summary>
     function GetHandleCount: Integer;
     
     // GC metrics (Delphi)
+    /// <summary>Collects garbage collector and memory manager metrics.</summary>
     procedure CollectGCMetrics;
     
     // Platform-specific helpers
     {$IFDEF MSWINDOWS}
+    /// <summary>Gets Windows memory status information.</summary>
     function GetWindowsMemoryInfo: TMemoryStatusEx;
+    /// <summary>Calculates Windows-specific CPU usage.</summary>
     function GetWindowsCPUUsage: Double;
+    /// <summary>Gets Windows process information.</summary>
     function GetWindowsProcessInfo: TProcessEntry32;
     {$ENDIF}
     
     {$IFDEF LINUX}
+    /// <summary>Gets Linux memory information from /proc/meminfo.</summary>
     function GetLinuxMemoryInfo: TArray<UInt64>;
+    /// <summary>Calculates Linux-specific CPU usage from /proc/stat.</summary>
     function GetLinuxCPUUsage: Double;
+    /// <summary>Gets Linux process information from /proc filesystem.</summary>
     function GetLinuxProcessInfo: TArray<UInt64>;
     {$ENDIF}
   protected
+    /// <summary>
+    /// Performs the actual metrics collection based on enabled options.
+    /// Called by background thread or manual collection. Handles errors silently.
+    /// </summary>
     procedure DoCollectMetrics;
   public
+    /// <summary>
+    /// Creates a new system metrics collector with default settings.
+    /// Initializes with 30-second interval and basic metrics (memory, CPU, threads).
+    /// </summary>
     constructor Create;
+    
+    /// <summary>
+    /// Destroys the collector and ensures background collection is stopped.
+    /// Automatically calls Stop to clean up resources safely.
+    /// </summary>
     destructor Destroy; override;
     
+    /// <summary>
+    /// Starts background metric collection using configured interval.
+    /// Requires metrics provider to be set before starting.
+    /// Thread-safe operation that can be called multiple times safely.
+    /// </summary>
     procedure Start;
+    
+    /// <summary>
+    /// Stops background metric collection and terminates collection thread.
+    /// Thread-safe operation that waits for thread termination.
+    /// Can be called multiple times safely.
+    /// </summary>
     procedure Stop;
+    
+    /// <summary>
+    /// Checks if background metric collection is currently active.
+    /// Thread-safe operation for checking collector state.
+    /// </summary>
+    /// <returns>True if collection is running, false otherwise</returns>
     function IsRunning: Boolean;
+    
+    /// <summary>
+    /// Sets the collection interval for background metrics.
+    /// If collector is running, it will be restarted with new interval.
+    /// Thread-safe operation with automatic restart handling.
+    /// </summary>
+    /// <param name="Interval">The new collection interval</param>
     procedure SetInterval(const Interval: TSystemMetricsCollectionInterval);
+    
+    /// <summary>
+    /// Sets which categories of metrics to collect.
+    /// Changes take effect on next collection cycle.
+    /// Thread-safe operation for runtime configuration.
+    /// </summary>
+    /// <param name="Options">Set of metric categories to enable</param>
     procedure SetOptions(const Options: TSystemMetricsOptions);
+    
+    /// <summary>
+    /// Sets the metrics provider for reporting collected metrics.
+    /// Required before starting automatic collection.
+    /// Thread-safe operation for provider configuration.
+    /// </summary>
+    /// <param name="Provider">The metrics provider to use for reporting</param>
     procedure SetMetricsProvider(const Provider: IObservabilityMetrics);
+    
+    /// <summary>
+    /// Collects metrics immediately without waiting for collection interval.
+    /// Useful for on-demand metrics collection or manual triggers.
+    /// Thread-safe operation that can be called while background collection is running.
+    /// </summary>
     procedure CollectOnce;
     
+    /// <summary>
+    /// Factory method that creates a collector with recommended default settings.
+    /// Includes memory, CPU, thread count, and GC metrics with 30-second interval.
+    /// </summary>
+    /// <returns>Configured system metrics collector ready for use</returns>
     class function CreateDefaultCollector: ISystemMetricsCollector; static;
   end;
 
   // Helper thread for periodic collection
+  /// <summary>
+  /// Background thread for periodic system metrics collection.
+  /// Runs independently from main application thread to collect metrics at regular intervals.
+  /// Designed to be lightweight and resilient to collection errors.
+  /// Automatically terminates when collector is stopped.
+  /// </summary>
   TSystemMetricsThread = class(TThread)
   private
     FCollector: TSystemMetricsCollector;
     FInterval: Cardinal;
   protected
+    /// <summary>
+    /// Main thread execution loop that collects metrics at specified intervals.
+    /// Handles collection errors silently to prevent thread termination.
+    /// Respects termination signals for clean shutdown.
+    /// </summary>
     procedure Execute; override;
   public
+    /// <summary>
+    /// Creates a new metrics collection thread.
+    /// Thread starts immediately and begins collecting at specified interval.
+    /// </summary>
+    /// <param name="Collector">The collector instance to use for metrics collection</param>
+    /// <param name="Interval">The collection interval in milliseconds</param>
     constructor Create(const Collector: TSystemMetricsCollector; const Interval: Cardinal);
   end;
 
@@ -140,6 +282,10 @@ implementation
 
 { TSystemMetricsCollector }
 
+/// <summary>
+/// Creates a system metrics collector with default configuration.
+/// Sets up basic metrics collection (memory, CPU, threads) with 30-second interval.
+/// </summary>
 constructor TSystemMetricsCollector.Create;
 begin
   inherited Create;
@@ -157,6 +303,10 @@ begin
   inherited Destroy;
 end;
 
+/// <summary>
+/// Creates a system metrics collector with recommended production settings.
+/// Includes comprehensive metrics collection with balanced performance impact.
+/// </summary>
 class function TSystemMetricsCollector.CreateDefaultCollector: ISystemMetricsCollector;
 var
   Collector: TSystemMetricsCollector;
@@ -167,6 +317,11 @@ begin
   Result := Collector;
 end;
 
+/// <summary>
+/// Starts background metrics collection with configured interval and options.
+/// Creates and starts background thread for periodic collection.
+/// Requires metrics provider to be configured before starting.
+/// </summary>
 procedure TSystemMetricsCollector.Start;
 begin
   FLock.Enter;
@@ -257,6 +412,11 @@ begin
   end;
 end;
 
+/// <summary>
+/// Coordinates collection of all enabled metric categories.
+/// Calls specific collection methods based on configured options.
+/// Uses silent error handling to ensure application stability.
+/// </summary>
 procedure TSystemMetricsCollector.DoCollectMetrics;
 begin
   try
@@ -279,6 +439,11 @@ begin
   end;
 end;
 
+/// <summary>
+/// Collects comprehensive memory metrics for application and system.
+/// Reports application working set, system memory usage, and usage percentages.
+/// Uses platform-specific APIs for accurate memory information.
+/// </summary>
 procedure TSystemMetricsCollector.CollectMemoryMetrics;
 var
   AppMemory: UInt64;
@@ -377,6 +542,12 @@ begin
   end;
 end;
 
+/// <summary>
+/// Gets current application memory usage using platform-specific APIs.
+/// On Windows: Uses GetProcessMemoryInfo for working set size.
+/// On Linux: Parses /proc/self/status for VmRSS (resident set size).
+/// Returns 0 on any error to ensure safe operation.
+/// </summary>
 function TSystemMetricsCollector.GetApplicationMemoryUsage: UInt64;
 {$IFDEF MSWINDOWS}
 var
@@ -421,6 +592,12 @@ begin
 end;
 {$ENDIF}
 
+/// <summary>
+/// Gets system-wide memory statistics using platform-specific methods.
+/// Returns array with [Used MB, Available MB, Total MB].
+/// On Windows: Uses GlobalMemoryStatusEx API.
+/// On Linux: Parses /proc/meminfo for MemTotal and MemAvailable.
+/// </summary>
 function TSystemMetricsCollector.GetSystemMemoryUsage: TArray<Double>;
 {$IFDEF MSWINDOWS}
 var
@@ -506,6 +683,12 @@ begin
   Result[1] := 0; // Sent bytes
 end;
 
+/// <summary>
+/// Gets current thread count for the application using platform-specific methods.
+/// On Windows: Uses CreateToolhelp32Snapshot to enumerate threads.
+/// On Linux: Counts entries in /proc/self/task directory.
+/// Returns 0 on error to ensure safe operation.
+/// </summary>
 function TSystemMetricsCollector.GetThreadCount: Integer;
 {$IFDEF MSWINDOWS}
 var
@@ -556,6 +739,12 @@ begin
 end;
 {$ENDIF}
 
+/// <summary>
+/// Gets current handle/file descriptor count using platform-specific methods.
+/// On Windows: Uses GetProcessHandleCount API.
+/// On Linux: Counts entries in /proc/self/fd directory.
+/// Returns 0 on error to ensure safe operation.
+/// </summary>
 function TSystemMetricsCollector.GetHandleCount: Integer;
 {$IFDEF MSWINDOWS}
 var
@@ -631,6 +820,10 @@ end;
 
 { TSystemMetricsThread }
 
+/// <summary>
+/// Creates and starts a background thread for periodic metrics collection.
+/// Thread is created in non-suspended state and begins collection immediately.
+/// </summary>
 constructor TSystemMetricsThread.Create(const Collector: TSystemMetricsCollector; const Interval: Cardinal);
 begin
   inherited Create(False);
@@ -639,6 +832,12 @@ begin
   FreeOnTerminate := False;
 end;
 
+/// <summary>
+/// Main execution loop for background metrics collection.
+/// Continuously collects metrics at specified intervals until termination is requested.
+/// Uses silent error handling to prevent thread termination due to collection failures.
+/// Respects termination signals for clean shutdown.
+/// </summary>
 procedure TSystemMetricsThread.Execute;
 begin
   while not Terminated do

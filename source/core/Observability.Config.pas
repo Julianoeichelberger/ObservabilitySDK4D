@@ -31,6 +31,18 @@ uses
   Observability.Interfaces;
 
 type
+  /// <summary>
+  /// Configuration class for observability providers.
+  /// Contains all settings needed to configure different observability backends including
+  /// service metadata, connection parameters, performance settings, and custom properties.
+  /// Thread-safe implementation with automatic defaults and validation.
+  /// 
+  /// Supported configurations:
+  /// - Service information (name, version, environment)
+  /// - Server connection (URL, API keys, authentication)
+  /// - Performance settings (batch size, flush intervals, sampling)
+  /// - Custom properties for provider-specific settings
+  /// </summary>
   TObservabilityConfig = class(TInterfacedObject, IObservabilityConfig)
   private
     FServiceName: string;
@@ -47,7 +59,16 @@ type
     FCustomProperties: TDictionary<string, string>;
     FLock: TCriticalSection;
     
+    /// <summary>
+    /// Gets the default service name from the application executable name.
+    /// </summary>
+    /// <returns>Default service name derived from application</returns>
     function GetDefaultServiceName: string;
+    
+    /// <summary>
+    /// Gets the default service version from the application version info.
+    /// </summary>
+    /// <returns>Default service version from application metadata</returns>
     function GetDefaultServiceVersion: string;
   protected
     function GetServiceName: string;
@@ -76,15 +97,57 @@ type
     procedure SetSupportedTypes(const Value: TObservabilityTypeSet);
     procedure AddCustomProperty(const Key, Value: string);
   public
+    /// <summary>
+    /// Creates a new configuration instance with default values.
+    /// Automatically detects service name and version from the application.
+    /// </summary>
     constructor Create;
-    destructor Destroy; override;
     
-    // Factory methods for different providers
+    /// <summary>
+    /// Destroys the configuration instance and cleans up resources.
+    /// </summary>
+    destructor Destroy; override;
+     
+    /// <summary>
+    /// Creates a configuration instance pre-configured for Elastic APM.
+    /// Sets default values specific to Elastic APM integration.
+    /// </summary>
+    /// <returns>Configuration instance for Elastic APM</returns>
     class function CreateElasticConfig: IObservabilityConfig; static;
+    
+    /// <summary>
+    /// Creates a configuration instance pre-configured for Jaeger.
+    /// Sets default values specific to Jaeger tracing integration.
+    /// </summary>
+    /// <returns>Configuration instance for Jaeger</returns>
     class function CreateJaegerConfig: IObservabilityConfig; static;
+    
+    /// <summary>
+    /// Creates a configuration instance pre-configured for Sentry.
+    /// Sets default values specific to Sentry error tracking and performance monitoring.
+    /// </summary>
+    /// <returns>Configuration instance for Sentry</returns>
     class function CreateSentryConfig: IObservabilityConfig; static;
+    
+    /// <summary>
+    /// Creates a configuration instance pre-configured for Datadog APM.
+    /// Sets default values specific to Datadog APM integration.
+    /// </summary>
+    /// <returns>Configuration instance for Datadog</returns>
     class function CreateDatadogConfig: IObservabilityConfig; static;
+    
+    /// <summary>
+    /// Creates a configuration instance pre-configured for Console output.
+    /// Used for development and debugging with console/debug output.
+    /// </summary>
+    /// <returns>Configuration instance for Console provider</returns>
     class function CreateConsoleConfig: IObservabilityConfig; static;
+    
+    /// <summary>
+    /// Creates a configuration instance pre-configured for Text File output.
+    /// Used for offline analysis and debugging with file-based logging.
+    /// </summary>
+    /// <returns>Configuration instance for Text File provider</returns>
     class function CreateTextFileConfig: IObservabilityConfig; static;
   end;
 
