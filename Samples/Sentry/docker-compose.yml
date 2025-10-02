@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: sentry-postgres
+    environment:
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: sentry
+      POSTGRES_DB: sentry
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentry-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentry"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: sentry-redis
+    networks:
+      - sentry-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Sentry Base Configuration
+  sentry-base: &sentry-base
+    image: sentry:latest
+    environment:
+      SENTRY_SECRET_KEY: 'ObservabilitySDK4D-development-secret-key-32chars'
+      SENTRY_POSTGRES_HOST: postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_REDIS_HOST: redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_EMAIL_BACKEND: console
+      SENTRY_USE_SSL: 'false'
+    networks:
+      - sentry-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Sentry Database Migration (run once)
+  sentry-upgrade:
+    <<: *sentry-base
+    container_name: sentry-upgrade
+    command: sentry upgrade --noinput
+    restart: 'no'
+
+  # Sentry Web Interface
+  sentry-web:
+    <<: *sentry-base
+    container_name: sentry-web
+    ports:
+      - "9000:9000"
+    command: sentry run web
+    restart: unless-stopped
+    depends_on:
+      - sentry-upgrade
+
+  # Sentry Background Worker
+  sentry-worker:
+    <<: *sentry-base
+    container_name: sentry-worker
+    command: sentry run worker
+    restart: unless-stopped
+    depends_on:
+      - sentry-upgrade
+
+  # Sentry Cron Jobs
+  sentry-cron:
+    <<: *sentry-base
+    container_name: sentry-cron
+    command: sentry run cron
+    restart: unless-stopped
+    depends_on:
+      - sentry-upgrade
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  sentry-network:
+    driver: bridge

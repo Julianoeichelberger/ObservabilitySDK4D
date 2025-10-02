@@ -1,0 +1,162 @@
+version: '3.8'
+
+services:
+  # Jaeger All-in-One (Development Environment)
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:1.50
+    container_name: jaeger-aio
+    restart: unless-stopped
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      # Jaeger Collector HTTP
+      - "14268:14268"
+      # Jaeger Collector gRPC  
+      - "14250:14250"
+      # Jaeger Agent (for future UDP support)
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      # Jaeger Agent HTTP
+      - "5778:5778"
+      # OpenTelemetry Protocol (OTLP) HTTP
+      - "4318:4318"
+      # OpenTelemetry Protocol (OTLP) gRPC
+      - "4317:4317"
+    environment:
+      # Storage configuration
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=debug
+      # Memory storage (for development)
+      - SPAN_STORAGE_TYPE=memory
+      # Optional: Badger storage (persistent)
+      # - SPAN_STORAGE_TYPE=badger
+      # - BADGER_EPHEMERAL=false
+      # - BADGER_DIRECTORY_VALUE=/badger/data
+      # - BADGER_DIRECTORY_KEY=/badger/key
+    networks:
+      - jaeger-network
+    # Uncomment for persistent storage with Badger
+    # volumes:
+    #   - jaeger-badger-data:/badger/data
+    #   - jaeger-badger-key:/badger/key
+
+  # Elasticsearch (Production-like setup)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.4
+    container_name: jaeger-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - jaeger-network
+    profiles:
+      - production
+
+  # Jaeger Collector (Production setup)
+  jaeger-collector:
+    image: jaegertracing/jaeger-collector:1.50
+    container_name: jaeger-collector
+    restart: unless-stopped
+    command:
+      - "--es.server-urls=http://elasticsearch:9200"
+      - "--es.num-shards=1"
+      - "--es.num-replicas=0"
+      - "--log-level=debug"
+      - "--collector.otlp.enabled=true"
+    ports:
+      - "14269:14269"   # Admin port
+      - "14268:14268"   # HTTP port
+      - "14250:14250"   # gRPC port
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+    depends_on:
+      - elasticsearch
+    networks:
+      - jaeger-network
+    profiles:
+      - production
+
+  # Jaeger Query (Production setup)
+  jaeger-query:
+    image: jaegertracing/jaeger-query:1.50
+    container_name: jaeger-query
+    restart: unless-stopped
+    command:
+      - "--es.server-urls=http://elasticsearch:9200"
+      - "--span-storage.type=elasticsearch"
+      - "--log-level=debug"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "16687:16687"   # Admin port
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - no_proxy=localhost
+    depends_on:
+      - elasticsearch
+    networks:
+      - jaeger-network
+    profiles:
+      - production
+
+  # Jaeger Agent (Production setup) 
+  jaeger-agent:
+    image: jaegertracing/jaeger-agent:1.50
+    container_name: jaeger-agent
+    restart: unless-stopped
+    command:
+      - "--reporter.grpc.host-port=jaeger-collector:14250"
+      - "--log-level=debug"
+    ports:
+      - "5775:5775/udp"   # Zipkin compact protocol
+      - "6831:6831/udp"   # Jaeger compact protocol
+      - "6832:6832/udp"   # Jaeger binary protocol
+      - "5778:5778"       # Config server
+    depends_on:
+      - jaeger-collector
+    networks:
+      - jaeger-network
+    profiles:
+      - production
+
+  # HotROD Demo Application (Optional)
+  hotrod:
+    image: jaegertracing/example-hotrod:1.50
+    container_name: jaeger-hotrod
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    command:
+      - all
+    environment:
+      - JAEGER_AGENT_HOST=jaeger-all-in-one
+      - JAEGER_AGENT_PORT=6831
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    depends_on:
+      - jaeger-all-in-one
+    networks:
+      - jaeger-network
+    profiles:
+      - demo
+
+networks:
+  jaeger-network:
+    driver: bridge
+
+volumes:
+  elasticsearch-data:
+    driver: local

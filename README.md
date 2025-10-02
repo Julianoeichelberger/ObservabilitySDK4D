@@ -1,64 +1,171 @@
-# ObservabilitySDK4D - Comprehensive Documentation
+# ObservabilitySDK4D
 
-## 📋 **Executive Summary**
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Delphi](https://img.shields.io/badge/Delphi-10.3%2B-red.svg)](https://www.embarcadero.com/products/delphi)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue.svg)](https://github.com/Julianoeichelberger/ObservabilitySDK4D)
 
-**ObservabilitySDK4D** is a comprehensive Delphi framework for Application Performance Monitoring (APM) that provides **distributed tracing**, **metrics collection**, and **observability** for Delphi applications. The SDK offers a **unified API** with support for multiple providers including **Elastic APM**, **Jaeger**, **Sentry**, **Datadog**, and **Console/File** outputs.
+> A comprehensive **Application Performance Monitoring (APM)** and **Observability** framework for Delphi applications with support for distributed tracing, metrics collection, and structured logging.
 
-### 🎯 **Key Value Propositions**
-- **🔄 Multi-Provider Support**: Switch between APM providers without code changes
-- **📊 Automatic Instrumentation**: Built-in system metrics and performance tracking  
-- **🔗 Distributed Tracing**: Complete request lifecycle tracking across services
-- **⚡ Zero-Config**: Works out-of-the-box with sensible defaults
-- **🎛️ Thread-Safe**: Production-ready with automatic resource management
+## 🌍 Multi-Language Documentation
+
+| Language | Documentation | Status |
+|----------|---------------|--------|
+| 🇺🇸 **English** | [📖 Read Documentation](docs/en/README.md) | ✅ Complete |
+| 🇧🇷 **Português (Brasil)** | [📖 Ler Documentação](docs/pt-BR/README.md) | ✅ Completo |
+| 🇪🇸 **Español** | [📖 Leer Documentación](docs/es/README.md) | ✅ Completo |
 
 ---
 
-## 🏗️ **Architecture Overview**
+## 🚀 Quick Start
 
-### **Core Components Architecture**
+```pascal
+uses Observability.SDK, Observability.Provider.Console;
+
+begin
+  // Initialize ObservabilitySDK4D
+  TObservability.Initialize;
+  TObservability.RegisterProvider(TConsoleProvider.Create);
+  TObservability.SetActiveProvider(opConsole);
+  
+  // Start tracing your application
+  var Span := TObservability.StartSpan('user-operation');
+  try
+    Span.SetAttribute('user.id', '12345');
+    // Your business logic here
+    Span.SetOutcome(Success);
+  finally
+    Span.Finish;
+  end;
+  
+  TObservability.Shutdown;
+end;
+```
+
+## 🎯 Key Features
+
+- **🔄 Multi-Provider Support**: Elastic APM, Jaeger, Sentry, Datadog, Console
+- **📊 Complete Observability**: Tracing, Metrics, Logging in one SDK
+- **🔗 Distributed Tracing**: Track requests across microservices
+- **⚡ Zero-Config**: Works out-of-the-box with sensible defaults
+- **🧵 Thread-Safe**: Production-ready with automatic resource management
+- **📈 Auto-Metrics**: Automatic system metrics collection (CPU, Memory, GC)
+
+## 📋 Provider Support Matrix
+
+| Provider | Tracing | Metrics | Logging | Error Tracking | Status |
+|----------|---------|---------|---------|----------------|--------|
+| **🔍 Elastic APM** | ✅ | ✅ | ✅ | ✅ | 🟢 Production Ready |
+| **🕸️ Jaeger** | ✅ | ❌ | ❌ | ❌ | 🟢 Production Ready |
+| **🛡️ Sentry** | ✅ | ❌* | ✅ | ✅ | 🟢 Production Ready |
+| **🐕 Datadog** | ✅ | ✅ | ✅ | ✅ | 🟢 Production Ready |
+| **📄 Console** | ✅ | ✅ | ✅ | ✅ | 🟢 Development |
+| **📁 TextFile** | ✅ | ✅ | ✅ | ✅ | 🟢 Development |
+
+> *Sentry metrics are not natively supported by Sentry platform
+
+## 🏗️ Architecture Overview
+
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                 TObservability (Static API)             │
+│                  TObservability (Static API)            │
 ├─────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │  ITracer        │  │  IMetrics    │  │  ILogger    │ │
-│  └─────────────────┘  └──────────────┘  └─────────────┘ │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │
+│ │  Tracing    │ │   Metrics   │ │      Logging        │ │
+│ │   (APM)     │ │ Collection  │ │  (Structured)       │ │
+│ └─────────────┘ └─────────────┘ └─────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────┐
-│                Provider Abstraction Layer               │
-├─────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │IObservability│  │IObservability│  │IObservability│   │
-│  │   Provider   │  │   Tracer     │  │   Metrics    │   │
-│  └──────────────┘  └──────────────┘  └──────────────┘   │
+│               Provider Abstraction Layer                │
 └─────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────┐
-│                    Provider Implementations             │
-├─────────────────────────────────────────────────────────┤
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────────────┐ │
-│ │ Elastic │ │ Jaeger  │ │ Sentry  │ │ Console/File    │ │
-│ │   APM   │ │ Tracing │ │   APM   │ │    Providers    │ │
-│ └─────────┘ └─────────┘ └─────────┘ └─────────────────┘ │
+│ 📊 Elastic  🕸️ Jaeger  🛡️ Sentry  🐕 Datadog  📄 Console │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### **Data Flow Architecture**
+## 🔧 Core Concepts
+
+### 🎯 **APM (Application Performance Monitoring)**
+Monitoring application performance, response times, throughput, and error rates in real-time.
+
+### 🔗 **Distributed Tracing**
+Track requests as they flow through multiple services, creating a complete picture of system behavior.
+
+### 📊 **OpenTelemetry Compatibility**
+Built with OpenTelemetry principles for vendor-neutral observability.
+
+### 📈 **Metrics Collection**
+- **Counters**: Cumulative values (requests, errors)
+- **Gauges**: Point-in-time values (memory, connections)
+- **Histograms**: Distribution of values (response times)
+
+### 📝 **Structured Logging**
+Rich, searchable logs with context and correlation across distributed systems.
+
+## 🛠️ Installation
+
+1. **Download**: Clone or download the repository
+2. **Add Path**: Add `source` folder to your project library path
+3. **Include Units**: Add required units to your uses clause
+4. **Initialize**: Configure and initialize in your application
+
+```pascal
+// Required units
+uses
+  Observability.SDK,
+  Observability.Provider.Elastic; // or your preferred provider
 ```
-Application Code
-       │
-   ┌───▼───┐      ┌─────────────┐      ┌──────────────┐
-   │ Start │      │   Span      │      │   Provider   │
-   │ Span  │ ──── │   Stack     │ ──── │  (Elastic/   │ ──── APM Server
-   │       │      │ Management  │      │   Jaeger)    │
-   └───────┘      └─────────────┘      └──────────────┘
-       │                  │                     │
-   ┌───▼───┐      ┌─────────────┐      ┌──────────────┐
-   │Finish │      │   Context   │      │   Metrics    │
-   │ Span  │      │ Propagation │      │  Collection  │ ──── Metrics Storage
-   └───────┘      └─────────────┘      └──────────────┘
+
+## 🎮 Examples & Samples
+
+Explore practical examples in the [`Samples`](Samples/) directory:
+
+- **🔍 Elastic APM**: Complete Elastic Stack with Kibana
+- **🕸️ Jaeger**: Jaeger tracing with OTLP
+- **🛡️ Sentry**: Error tracking and performance
+- **🐕 Datadog**: Full-stack observability
+- **💻 Console**: Development and debugging
+
+Each sample includes Docker Compose environments for quick testing.
+
+## 📚 Documentation Structure
+
 ```
+docs/
+├── en/           # English documentation
+├── pt-BR/        # Portuguese (Brazil) documentation  
+├── es/           # Spanish documentation
+└── assets/       # Shared images and diagrams
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please read our contributing guidelines in your preferred language:
+
+- [🇺🇸 Contributing Guide (English)](docs/en/CONTRIBUTING.md)
+- [🇧🇷 Guia de Contribuição (Português)](docs/pt-BR/CONTRIBUTING.md)
+- [🇪🇸 Guía de Contribución (Español)](docs/es/CONTRIBUTING.md)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **📖 Documentation**: Check the language-specific docs above
+- **🐛 Issues**: [GitHub Issues](https://github.com/Julianoeichelberger/ObservabilitySDK4D/issues)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/Julianoeichelberger/ObservabilitySDK4D/discussions)
+
+---
+
+<div align="center">
+
+**ObservabilitySDK4D** - Making Delphi applications observable in modern cloud environments.
+
+[⭐ Star this project](https://github.com/Julianoeichelberger/ObservabilitySDK4D) • [🍴 Fork](https://github.com/Julianoeichelberger/ObservabilitySDK4D/fork) • [📖 Docs](docs/) • [🐛 Issues](https://github.com/Julianoeichelberger/ObservabilitySDK4D/issues)
+
+</div>
 
 ---
 
