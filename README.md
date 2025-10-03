@@ -1,37 +1,33 @@
-# ObservabilitySDK4D
+# Observability SDK for Delphi (ObservabilitySDK4D)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Delphi](https://img.shields.io/badge/Delphi-10.3%2B-red.svg)](https://www.embarcadero.com/products/delphi)
+[![Delphi](https://img.shields.io/badge/Delphi-XE%2B-red.svg)](https://www.embarcadero.com/products/delphi)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue.svg)](https://github.com/Julianoeichelberger/ObservabilitySDK4D)
 
-> A comprehensive **Application Performance Monitoring (APM)** and **Observability** framework for Delphi applications with support for distributed tracing, metrics collection, and structured logging.
-
-## 🌍 Multi-Language Documentation
-
-| Language | Documentation | Status |
-|----------|---------------|--------|
-| 🇺🇸 **English** | [📖 Read Documentation](docs/en/README.md) | ✅ Complete |
-| 🇧🇷 **Português (Brasil)** | [📖 Ler Documentação](docs/pt-BR/README.md) | ✅ Completo |
-| 🇪🇸 **Español** | [📖 Leer Documentación](docs/es/README.md) | ✅ Completo |
+**Idiomas:** Português (Atual) | [English](./docs/README.en.md) | [Español](./docs/README.es.md) | [Deutsch](./docs/README.de.md)
 
 ---
 
-## 🚀 Quick Start
+> Um framework completo de **Application Performance Monitoring (APM)** e **Observabilidade** para aplicações Delphi, com suporte para rastreamento distribuído, coleta de métricas e logging estruturado.
+
+---
+
+## 🚀 Início Rápido
 
 ```pascal
 uses Observability.SDK, Observability.Provider.Console;
 
 begin
-  // Initialize ObservabilitySDK4D
+  // Inicializar ObservabilitySDK4D
   TObservability.Initialize;
   TObservability.RegisterProvider(TConsoleProvider.Create);
   TObservability.SetActiveProvider(opConsole);
   
-  // Start tracing your application
-  var Span := TObservability.StartSpan('user-operation');
+  // Começar a rastrear sua aplicação
+  var Span := TObservability.StartSpan('operacao-usuario');
   try
     Span.SetAttribute('user.id', '12345');
-    // Your business logic here
+    // Sua lógica de negócio aqui
     Span.SetOutcome(Success);
   finally
     Span.Finish;
@@ -41,42 +37,42 @@ begin
 end;
 ```
 
-## 🎯 Key Features
+## 🎯 Principais Funcionalidades
 
-- **🔄 Multi-Provider Support**: Elastic APM, Jaeger, Sentry, Datadog, Console
-- **📊 Complete Observability**: Tracing, Metrics, Logging in one SDK
-- **🔗 Distributed Tracing**: Track requests across microservices
-- **⚡ Zero-Config**: Works out-of-the-box with sensible defaults
-- **🧵 Thread-Safe**: Production-ready with automatic resource management
-- **📈 Auto-Metrics**: Automatic system metrics collection (CPU, Memory, GC)
+- **🔄 Suporte Multi-Provedor**: Elastic APM, Jaeger, Sentry, Datadog, Console
+- **📊 Observabilidade Completa**: Tracing, Métricas e Logging em um único SDK
+- **🔗 Rastreamento Distribuído**: Rastreie requisições através de microserviços
+- **⚡ Configuração Zero**: Funciona imediatamente com configurações padrão inteligentes
+- **🧵 Thread-Safe**: Pronto para produção com gerenciamento automático de recursos
+- **📈 Métricas Automáticas**: Coleta automática de métricas do sistema (CPU, Memória, GC)
 
-## 📋 Provider Support Matrix
+## 📋 Matriz de Suporte dos Provedores
 
-| Provider | Tracing | Metrics | Logging | Error Tracking | Status |
-|----------|---------|---------|---------|----------------|--------|
-| **🔍 Elastic APM** | ✅ | ✅ | ✅ | ✅ | 🟢 Production Ready |
-| **🕸️ Jaeger** | ✅ | ❌ | ❌ | ❌ | 🟢 Production Ready |
-| **🛡️ Sentry** | ✅ | ❌* | ✅ | ✅ | 🟢 Production Ready |
-| **🐕 Datadog** | ✅ | ✅ | ✅ | ✅ | 🟢 Production Ready |
-| **📄 Console** | ✅ | ✅ | ✅ | ✅ | 🟢 Development |
-| **📁 TextFile** | ✅ | ✅ | ✅ | ✅ | 🟢 Development |
+| Provedor | Tracing | Métricas | Logging | Rastreio de Erros | Status |
+|----------|---------|---------|---------|-------------------|--------|
+| **🔍 Elastic APM** | ✅ | ✅ | ✅ | ✅ | 🟢 Pronto para Produção |
+| **🕸️ Jaeger** | ✅ | ❌ | ❌ | ❌ | 🟢 Pronto para Produção |
+| **🛡️ Sentry** | ✅ | ❌* | ✅ | ✅ | 🟢 Pronto para Produção |
+| **🐕 Datadog** | ✅ | ✅ | ✅ | ✅ | 🟢 Pronto para Produção |
+| **📄 Console** | ✅ | ✅ | ✅ | ✅ | 🟢 Desenvolvimento |
+| **📁 TextFile** | ✅ | ✅ | ✅ | ✅ | 🟢 Desenvolvimento |
 
-> *Sentry metrics are not natively supported by Sentry platform
+> *Métricas do Sentry não são suportadas nativamente pela plataforma Sentry
 
-## 🏗️ Architecture Overview
+## 🏗️ Visão Geral da Arquitetura
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  TObservability (Static API)            │
+│                  TObservability (API Estática)          │
 ├─────────────────────────────────────────────────────────┤
 │ ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │
-│ │  Tracing    │ │   Metrics   │ │      Logging        │ │
-│ │   (APM)     │ │ Collection  │ │  (Structured)       │ │
+│ │  Tracing    │ │   Métricas  │ │      Logging        │ │
+│ │   (APM)     │ │   Coleta    │ │  (Estruturado)      │ │
 │ └─────────────┘ └─────────────┘ └─────────────────────┘ │
 └─────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────┐
-│               Provider Abstraction Layer                │
+│            Camada de Abstração de Provedores            │
 └─────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────┐
@@ -84,115 +80,115 @@ end;
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 🔧 Core Concepts
+## 🔧 Conceitos Principais
 
 ### 🎯 **APM (Application Performance Monitoring)**
-Monitoring application performance, response times, throughput, and error rates in real-time.
+Monitoramento de desempenho da aplicação, tempos de resposta, taxa de transferência e taxas de erro em tempo real.
 
-### 🔗 **Distributed Tracing**
-Track requests as they flow through multiple services, creating a complete picture of system behavior.
+### 🔗 **Rastreamento Distribuído**
+Rastreie requisições conforme elas fluem através de múltiplos serviços, criando uma visão completa do comportamento do sistema.
 
-### 📊 **OpenTelemetry Compatibility**
-Built with OpenTelemetry principles for vendor-neutral observability.
+### 📊 **Compatibilidade com OpenTelemetry**
+Construído com os princípios do OpenTelemetry para observabilidade independente de fornecedor.
 
-### 📈 **Metrics Collection**
-- **Counters**: Cumulative values (requests, errors)
-- **Gauges**: Point-in-time values (memory, connections)
-- **Histograms**: Distribution of values (response times)
+### 📈 **Coleta de Métricas**
+- **Contadores (Counters)**: Valores cumulativos (requisições, erros)
+- **Medidores (Gauges)**: Valores em um ponto no tempo (memória, conexões)
+- **Histogramas**: Distribuição de valores (tempos de resposta)
 
-### 📝 **Structured Logging**
-Rich, searchable logs with context and correlation across distributed systems.
+### 📝 **Logging Estruturado**
+Logs ricos e pesquisáveis com contexto e correlação entre sistemas distribuídos.
 
-## 🛠️ Installation
+## 🛠️ Instalação
 
-1. **Download**: Clone or download the repository
-2. **Add Path**: Add `source` folder to your project library path
-3. **Include Units**: Add required units to your uses clause
-4. **Initialize**: Configure and initialize in your application
+1. **Download**: Clone ou baixe o repositório
+2. **Adicionar Caminho**: Adicione a pasta `source` ao caminho de biblioteca do seu projeto
+3. **Incluir Units**: Adicione as units necessárias à sua cláusula uses
+4. **Inicializar**: Configure e inicialize na sua aplicação
 
 ```pascal
-// Required units
+// Units necessárias
 uses
   Observability.SDK,
-  Observability.Provider.Elastic; // or your preferred provider
+  Observability.Provider.Elastic; // ou seu provedor preferido
 ```
 
-## 🎮 Examples & Samples
+## 🎮 Exemplos e Amostras
 
-Explore practical examples in the [`Samples`](Samples/) directory:
+Explore exemplos práticos no diretório [`Samples`](Samples/):
 
-- **🔍 Elastic APM**: Complete Elastic Stack with Kibana
-- **🕸️ Jaeger**: Jaeger tracing with OTLP
-- **🛡️ Sentry**: Error tracking and performance
-- **🐕 Datadog**: Full-stack observability
-- **💻 Console**: Development and debugging
+- **🔍 Elastic APM**: Elastic Stack completo com Kibana
+- **🕸️ Jaeger**: Rastreamento Jaeger com OTLP
+- **🛡️ Sentry**: Rastreamento de erros e desempenho
+- **🐕 Datadog**: Observabilidade full-stack
+- **💻 Console**: Desenvolvimento e depuração
 
-Each sample includes Docker Compose environments for quick testing.
+Cada exemplo inclui ambientes Docker Compose para testes rápidos.
 
-## 📚 Documentation Structure
+## 📚 Estrutura da Documentação
 
-```
-docs/
-├── en/           # English documentation
-├── pt-BR/        # Portuguese (Brazil) documentation  
-├── es/           # Spanish documentation
-└── assets/       # Shared images and diagrams
-```
+A documentação completa está disponível nos seguintes idiomas:
 
-## 🤝 Contributing
+- **🇧🇷 [Documentação em Português](README.md)** (Este arquivo)
+- **🇺🇸 [English Documentation](./docs/README.en.md)**
+- **🇪🇸 [Documentación en Español](./docs/README.es.md)**
+- **🇩🇪 [Deutsche Dokumentation](./docs/README.de.md)**
 
-We welcome contributions! Please read our contributing guidelines in your preferred language:
+## 🤝 Contribuindo
 
-- [🇺🇸 Contributing Guide (English)](docs/en/CONTRIBUTING.md)
-- [🇧🇷 Guia de Contribuição (Português)](docs/pt-BR/CONTRIBUTING.md)
-- [🇪🇸 Guía de Contribución (Español)](docs/es/CONTRIBUTING.md)
+Contribuições são bem-vindas! Sinta-se à vontade para:
 
-## 📄 License
+- Reportar bugs e problemas
+- Sugerir novas funcionalidades
+- Enviar pull requests
+- Melhorar a documentação
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 📄 Licença
 
-## 🆘 Support
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
-- **📖 Documentation**: Check the language-specific docs above
+## 🆘 Suporte
+
+- **📖 Documentação**: Confira a documentação específica por idioma acima
 - **🐛 Issues**: [GitHub Issues](https://github.com/Julianoeichelberger/ObservabilitySDK4D/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/Julianoeichelberger/ObservabilitySDK4D/discussions)
+- **💬 Discussões**: [GitHub Discussions](https://github.com/Julianoeichelberger/ObservabilitySDK4D/discussions)
 
 ---
 
 <div align="center">
 
-**ObservabilitySDK4D** - Making Delphi applications observable in modern cloud environments.
+**ObservabilitySDK4D** - Tornando aplicações Delphi observáveis em ambientes cloud modernos.
 
-[⭐ Star this project](https://github.com/Julianoeichelberger/ObservabilitySDK4D) • [🍴 Fork](https://github.com/Julianoeichelberger/ObservabilitySDK4D/fork) • [📖 Docs](docs/) • [🐛 Issues](https://github.com/Julianoeichelberger/ObservabilitySDK4D/issues)
+[⭐ Star neste projeto](https://github.com/Julianoeichelberger/ObservabilitySDK4D) • [🍴 Fork](https://github.com/Julianoeichelberger/ObservabilitySDK4D/fork) • [📖 Docs](docs/) • [🐛 Issues](https://github.com/Julianoeichelberger/ObservabilitySDK4D/issues)
 
 </div>
 
 ---
 
-## 🚀 **Quick Start Guide**
+## 🚀 **Guia de Início Rápido**
 
-### **1. Basic Setup (30 seconds)**
+### **1. Configuração Básica (30 segundos)**
 ```pascal
-program MyApp;
+program MeuApp;
 uses
   Observability.SDK,
   Observability.Provider.Elastic;
 
 begin
-  // Configure Elastic APM
+  // Configurar Elastic APM
   var Config := TObservability.CreateElasticConfig;
-  Config.ServiceName := 'my-service';
+  Config.ServiceName := 'meu-servico';
   Config.ServerUrl := 'http://localhost:8200';
   
-  // Initialize
+  // Inicializar
   TObservability.RegisterProvider(TElasticAPMProvider.Create.Configure(Config));
   TObservability.SetActiveProvider(opElastic);
   TObservability.Initialize;
   
-  // Your application code here
-  TObservability.StartTransaction('Main Process');
+  // Seu código da aplicação aqui
+  TObservability.StartTransaction('Processo Principal');
   try
-    DoSomething();
+    FazerAlgo();
   finally
     TObservability.FinishTransaction;
   end;
@@ -201,24 +197,24 @@ begin
 end.
 ```
 
-### **2. Advanced Usage with Custom Metrics**
+### **2. Uso Avançado com Métricas Customizadas**
 ```pascal
-// Start a transaction
-TObservability.StartTransaction('User Registration', 'request');
+// Iniciar uma transação
+TObservability.StartTransaction('Registro de Usuário', 'request');
 
 try
-  // Create nested spans
-  TObservability.StartSpan('Validate Input');
-  ValidateUserData();
+  // Criar spans aninhados
+  TObservability.StartSpan('Validar Entrada');
+  ValidarDadosUsuario();
   TObservability.FinishSpan;
   
-  TObservability.StartSpan('Database Insert');
-  SaveUserToDatabase();
+  TObservability.StartSpan('Inserir no Banco');
+  SalvarUsuarioNoBanco();
   TObservability.FinishSpan;
   
-  // Custom metrics
-  TObservability.Metrics.Counter('users.registered', 1);
-  TObservability.Metrics.Gauge('database.connections', GetActiveConnections());
+  // Métricas customizadas
+  TObservability.Metrics.Counter('usuarios.registrados', 1);
+  TObservability.Metrics.Gauge('banco.conexoes', GetConexoesAtivas());
   
   TObservability.FinishTransaction;
 except
@@ -232,11 +228,11 @@ end;
 
 ---
 
-## 📚 **Core Components Reference**
+## 📚 **Referência dos Componentes Principais**
 
-### **🎯 TObservability - Main Static API**
+### **🎯 TObservability - API Estática Principal**
 
-**Purpose**: Central facade providing static methods for all observability operations
+**Propósito**: Fachada central fornecendo métodos estáticos para todas as operações de observabilidade
 
 #### **Transaction Management**
 ```pascal
@@ -309,8 +305,8 @@ Config.SecretToken := 'your-secret-token';
 ```pascal
 var Config := TObservability.CreateElasticConfig;
 Config.ServerUrl := 'http://localhost:8200';
-Config.SecretToken := 'your-token';  // Optional
-Config.ServiceName := 'my-app';
+Config.SecretToken := 'seu-token';  // Opcional
+Config.ServiceName := 'meu-app';
 Config.Environment := 'production';
 
 var Provider := TElasticAPMProvider.Create;
@@ -319,82 +315,82 @@ TObservability.RegisterProvider(Provider);
 TObservability.SetActiveProvider(opElastic);
 ```
 
-**Data Structures**:
-- **Transactions**: `{"transaction": {..., "span_count": {"started": N}}}`
+**Estruturas de Dados**:
+- **Transações**: `{"transaction": {..., "span_count": {"started": N}}}`
 - **Spans**: `{"span": {..., "parent_id": "xxx"}}`
-- **Metrics**: `{"metricset": {"timestamp": ..., "samples": {...}}}`
+- **Métricas**: `{"metricset": {"timestamp": ..., "samples": {...}}}`
 
 ---
 
-## 📊 **Metrics System**
+## 📊 **Sistema de Métricas**
 
-### **Metric Types**
+### **Tipos de Métricas**
 
 ```pascal
-// Counter - Monotonically increasing values
-TObservability.Metrics.Counter('http.requests.total', 1);
-TObservability.Metrics.Counter('errors.count', 1, Tags);
+// Counter - Valores que aumentam monotonicamente
+TObservability.Metrics.Counter('http.requisicoes.total', 1);
+TObservability.Metrics.Counter('erros.count', 1, Tags);
 
-// Gauge - Point-in-time values
-TObservability.Metrics.Gauge('memory.usage.bytes', MemoryUsed);
-TObservability.Metrics.Gauge('cpu.utilization.percent', CPUPercent);
+// Gauge - Valores em um ponto no tempo
+TObservability.Metrics.Gauge('memoria.uso.bytes', MemoriaUsada);
+TObservability.Metrics.Gauge('cpu.utilizacao.percent', CPUPorcento);
 
-// Histogram - Distribution of values
-TObservability.Metrics.Histogram('http.request.duration', ElapsedMs);
-TObservability.Metrics.Histogram('database.query.time', QueryTimeMs);
+// Histogram - Distribuição de valores
+TObservability.Metrics.Histogram('http.requisicao.duracao', TempoDecorridoMs);
+TObservability.Metrics.Histogram('banco.consulta.tempo', TempoConsultaMs);
 ```
 
-### **System Metrics (Automatic)**
+### **Métricas do Sistema (Automáticas)**
 
-When `TObservability.EnableSystemMetrics` is called:
+Quando `TObservability.EnableSystemMetrics` é chamado:
 
 ```pascal
-// Memory metrics
+// Métricas de memória
 - system.memory.application.bytes.gauge
 - system.memory.used.mb.gauge  
 - system.memory.available.mb.gauge
 - system.memory.total.mb.gauge
 - system.memory.usage.percent.gauge
 
-// CPU metrics  
+// Métricas de CPU  
 - system.cpu.application.percent.gauge
 - system.cpu.system.percent.gauge
 
-// Runtime metrics
+// Métricas de runtime
 - system.threads.count.gauge
 - system.gc.allocated.bytes.gauge
 ```
 
 ---
 
-## 🔄 **Advanced Features**
+## 🔄 **Funcionalidades Avançadas**
 
-### **🎯 Automatic Span Management**
+### **🎯 Gerenciamento Automático de Spans**
 
-The SDK uses a **LIFO stack** to automatically manage parent-child relationships:
+O SDK usa uma **pilha LIFO** para gerenciar automaticamente relacionamentos pai-filho:
 
 ```pascal
-TObservability.StartTransaction('HTTP Request');
-  TObservability.StartSpan('Authentication');
-    TObservability.StartSpan('Database Query');
-    TObservability.FinishSpan; // Finishes Database Query
-  TObservability.FinishSpan;   // Finishes Authentication  
-TObservability.FinishTransaction; // Finishes HTTP Request
+TObservability.StartTransaction('Requisição HTTP');
+  TObservability.StartSpan('Autenticação');
+    TObservability.StartSpan('Consulta ao Banco');
+    TObservability.FinishSpan; // Finaliza Consulta ao Banco
+  TObservability.FinishSpan;   // Finaliza Autenticação  
+TObservability.FinishTransaction; // Finaliza Requisição HTTP
 ```
 
-**Result**: Perfect hierarchy with automatic parent_id correlation
+**Resultado**: Hierarquia perfeita com correlação automática de parent_id
 
-### **🧵 Thread Safety**
+### **🧵 Segurança de Thread**
 
-All operations are thread-safe using critical sections:
+Todas as operações são thread-safe usando seções críticas:
 
 ```pascal
-// Multiple threads can safely create spans
+// Múltiplas threads podem criar spans com segurança
 TThread.CreateAnonymousThread(procedure
 begin
-  TObservability.StartSpan('Background Task');
+  TObservability.StartSpan('Tarefa em Background');
   try
-    DoBackgroundWork();
+    FazerTrabalhoBackground();
   finally
     TObservability.FinishSpan;
   end;
@@ -403,74 +399,74 @@ end).Start;
 
 ---
 
-## 📋 **Best Practices**
+## 📋 **Melhores Práticas**
 
-### **🎯 Transaction Patterns**
+### **🎯 Padrões de Transação**
 
 ```pascal
-// ✅ GOOD: Clear transaction boundaries
-TObservability.StartTransaction('ProcessOrder', 'business');
+// ✅ BOM: Limites de transação claros
+TObservability.StartTransaction('ProcessarPedido', 'business');
 try
-  ValidateOrder();
-  CalculateTotal();
-  SaveToDatabase();
+  ValidarPedido();
+  CalcularTotal();
+  SalvarNoBanco();
   TObservability.FinishTransaction;
 except
   TObservability.FinishTransactionWithOutcome(Failure);
   raise;
 end;
 
-// ❌ AVOID: Unclear boundaries
-TObservability.StartSpan('DoEverything');
-// Too broad, hard to understand performance
+// ❌ EVITAR: Limites não claros
+TObservability.StartSpan('FazerTudo');
+// Muito amplo, difícil de entender o desempenho
 ```
 
-### **📊 Metrics Naming**
+### **📊 Nomenclatura de Métricas**
 
 ```pascal
-// ✅ GOOD: Descriptive, hierarchical names
-TObservability.Metrics.Counter('http.requests.total');
-TObservability.Metrics.Gauge('database.connections.active');
-TObservability.Metrics.Histogram('api.response.duration');
+// ✅ BOM: Nomes descritivos e hierárquicos
+TObservability.Metrics.Counter('http.requisicoes.total');
+TObservability.Metrics.Gauge('banco.conexoes.ativas');
+TObservability.Metrics.Histogram('api.resposta.duracao');
 
-// ❌ AVOID: Generic names
+// ❌ EVITAR: Nomes genéricos
 TObservability.Metrics.Counter('count');
-TObservability.Metrics.Gauge('value');
+TObservability.Metrics.Gauge('valor');
 ```
 
 ---
 
-## 🚀 **Performance Characteristics**
+## 🚀 **Características de Desempenho**
 
 ### **📈 Benchmarks**
 
-- **Span Creation**: ~50-100μs per span
-- **Memory Overhead**: ~2-5MB baseline + ~1KB per active span
-- **Network Batching**: Configurable batch size (default: 100 events)
-- **Background Processing**: Non-blocking metrics collection
+- **Criação de Span**: ~50-100μs por span
+- **Overhead de Memória**: ~2-5MB base + ~1KB por span ativo
+- **Batching de Rede**: Tamanho de lote configurável (padrão: 100 eventos)
+- **Processamento em Background**: Coleta de métricas não-bloqueante
 
-### **⚙️ Optimization Features**
+### **⚙️ Funcionalidades de Otimização**
 
-- **Lazy Initialization**: Providers only initialize when used
-- **Connection Pooling**: HTTP clients reuse connections
-- **Batch Processing**: Multiple events sent in single request
-- **Circuit Breaking**: Automatic fallback on provider failures
+- **Inicialização Preguiçosa**: Provedores só inicializam quando usados
+- **Pooling de Conexões**: Clientes HTTP reutilizam conexões
+- **Processamento em Lote**: Múltiplos eventos enviados em uma única requisição
+- **Circuit Breaking**: Fallback automático em falhas do provedor
 
 ---
 
-## 📦 **Dependencies & Requirements**
+## 📦 **Dependências & Requisitos**
 
-### **🔧 System Requirements**
+### **🔧 Requisitos do Sistema**
 
-- **Delphi**: 10.3 Rio or newer
-- **Target Platforms**: Windows (32/64-bit), Linux (64-bit)
-- **Framework**: VCL/FMX compatible
-- **Runtime**: No external DLL dependencies
+- **Delphi**: XE ou superior
+- **Plataformas Alvo**: Windows (32/64-bit), Linux (64-bit)
+- **Framework**: Compatível com VCL/FMX
+- **Runtime**: Sem dependências de DLL externas
 
-### **🌐 External Services**
+### **🌐 Serviços Externos**
 
-| Provider | Service | Default Port | Protocol |
-|----------|---------|--------------|----------|
+| Provedor | Serviço | Porta Padrão | Protocolo |
+|----------|---------|--------------|-----------|
 | **Elastic APM** | APM Server | 8200 | HTTP/HTTPS |
 | **Jaeger** | Jaeger Agent | 14268 | HTTP |
 | **Sentry** | Sentry DSN | 443 | HTTPS |
@@ -478,67 +474,67 @@ TObservability.Metrics.Gauge('value');
 
 ---
 
-## 📊 **API Reference Summary**
+## 📊 **Resumo da Referência da API**
 
-### **Core Classes**
-| Class | Purpose | Thread-Safe | Key Methods |
-|-------|---------|-------------|-------------|
-| `TObservability` | Main static API | ✅ Yes | `StartTransaction`, `StartSpan`, `Metrics` |
-| `TObservabilitySDK` | SDK instance | ✅ Yes | `Initialize`, `RegisterProvider`, `Shutdown` |
-| `TElasticAPMProvider` | Elastic APM integration | ✅ Yes | `Configure`, `SendBatch` |
-| `TObservabilityContext` | Request context | ✅ Yes | `Clone`, `CreateChild` |
+### **Classes Principais**
+| Classe | Propósito | Thread-Safe | Métodos Principais |
+|--------|-----------|-------------|-------------------|
+| `TObservability` | API estática principal | ✅ Sim | `StartTransaction`, `StartSpan`, `Metrics` |
+| `TObservabilitySDK` | Instância do SDK | ✅ Sim | `Initialize`, `RegisterProvider`, `Shutdown` |
+| `TElasticAPMProvider` | Integração Elastic APM | ✅ Sim | `Configure`, `SendBatch` |
+| `TObservabilityContext` | Contexto de requisição | ✅ Sim | `Clone`, `CreateChild` |
 
-### **Interface Contracts**
-| Interface | Purpose | Key Methods |
-|-----------|---------|-------------|
-| `IObservabilitySpan` | Span operations | `Finish`, `AddAttribute`, `SetOutcome` |
-| `IObservabilityMetrics` | Metrics collection | `Counter`, `Gauge`, `Histogram` |
-| `IObservabilityConfig` | Provider configuration | Properties for URLs, tokens, etc. |
-| `IObservabilityProvider` | Provider abstraction | `Initialize`, `GetTracer`, `GetMetrics` |
-
----
-
-## 🤝 **Contributing & Support**
-
-### **📝 Contributing Guidelines**
-
-1. **Fork** the repository
-2. **Create** feature branch: `git checkout -b feature/amazing-feature`
-3. **Commit** changes: `git commit -m 'Add amazing feature'`
-4. **Push** to branch: `git push origin feature/amazing-feature`
-5. **Open** Pull Request
-
-### **🐛 Issue Reporting**
-
-When reporting issues, include:
-- Delphi version and platform
-- Provider type and configuration
-- Minimal reproduction code
-- Debug output (if applicable)
+### **Contratos de Interface**
+| Interface | Propósito | Métodos Principais |
+|-----------|-----------|-------------------|
+| `IObservabilitySpan` | Operações de span | `Finish`, `AddAttribute`, `SetOutcome` |
+| `IObservabilityMetrics` | Coleta de métricas | `Counter`, `Gauge`, `Histogram` |
+| `IObservabilityConfig` | Configuração de provedor | Propriedades para URLs, tokens, etc. |
+| `IObservabilityProvider` | Abstração de provedor | `Initialize`, `GetTracer`, `GetMetrics` |
 
 ---
 
-## 📄 **License & Copyright**
+## 🤝 **Contribuindo & Suporte**
+
+### **📝 Diretrizes de Contribuição**
+
+1. **Fork** o repositório
+2. **Crie** branch de feature: `git checkout -b feature/funcionalidade-incrivel`
+3. **Commit** as mudanças: `git commit -m 'Adiciona funcionalidade incrível'`
+4. **Push** para o branch: `git push origin feature/funcionalidade-incrivel`
+5. **Abra** Pull Request
+
+### **🐛 Reportando Issues**
+
+Ao reportar problemas, inclua:
+- Versão do Delphi e plataforma
+- Tipo e configuração do provedor
+- Código mínimo para reprodução
+- Saída de debug (se aplicável)
+
+---
+
+## 📄 **Licença & Copyright**
 
 ```
-MIT License
+Licença MIT
 
 Copyright (c) 2025 Juliano Eichelberger
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+É concedida permissão, gratuitamente, a qualquer pessoa que obtenha uma cópia
+deste software e arquivos de documentação associados (o "Software"), para lidar
+com o Software sem restrição, incluindo, sem limitação, os direitos de usar,
+copiar, modificar, mesclar, publicar, distribuir, sublicenciar e/ou vender
+cópias do Software, e permitir que as pessoas a quem o Software é fornecido
+o façam, sujeito às seguintes condições:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+O aviso de copyright acima e este aviso de permissão devem ser incluídos em todas
+as cópias ou partes substanciais do Software.
 ```
 
 ---
 
-*This documentation covers ObservabilitySDK4D v1.0.0 - Last updated: October 2025*
+*Esta documentação cobre o ObservabilitySDK4D v1.0.0 - Última atualização: Outubro 2025*
 │   ├── Context Management
 │   └── Configuration
 ├── Observability Types

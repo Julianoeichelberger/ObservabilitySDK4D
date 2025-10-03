@@ -1,3 +1,23 @@
+{
+  *******************************************************************************
+
+  Observability SDK for Delphi.
+
+  Copyright (C) 2025 Juliano Eichelberger 
+
+  License Notice:
+  This software is licensed under the terms of the MIT License.
+
+  As required by the license:
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+  The full license text can be found in the LICENSE file at the root of the project.
+
+  For more details on the terms of use, please consult:
+  https://opensource.org/licenses/MIT
+
+  *******************************************************************************
+}
 unit Observability.Utils;
 
 interface
